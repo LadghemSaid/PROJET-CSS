@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- TODO : nom de votre événement -->
+  <title>NOM DE L'ÉVÉNEMENT — Projet noté — Site vitrine d'un événement</title>
+  <meta name="description" content="TODO : une phrase qui présente l'événement.">
+
+  <!-- Polices (facultatif) : Google Fonts autorisé via <link>, ex.
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=...&display=swap">
+  -->
+
+  <!-- Un SEUL fichier CSS lié : main.css déclare l'ordre des layers et importe le reste -->
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+  <!-- ============================================================
+       EN-TÊTE : logo/nom + navigation vers les sections (ancres)
+       Flexbox (exigence 2). Menu mobile sans JS : Popover API,
+       <details> ou case à cocher + :has().
+       BONUS TECHNIQUE (exigence 5) : bascule de thème CSS-only, ex.
+       <label><input type="checkbox" id="theme-toggle"> Thème sombre</label>
+       ============================================================ -->
+  <header class="site-header">
+    <a href="#top" class="site-header__logo">NOM DE L'ÉVÉNEMENT</a>
+    <nav aria-label="Navigation principale">
+      <ul role="list">
+        <li><a href="#programme">Programme</a></li>
+        <li><a href="#intervenants">Intervenants</a></li>
+        <li><a href="#billetterie">Billetterie</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="top">
+
+    <!-- ============================================================
+         HERO : le SEUL <h1> de la page, date(s), lieu, accroche,
+         appel à l'action vers #billetterie.
+         Idées : grid-template-areas, @keyframes d'apparition (pensez
+         à prefers-reduced-motion), titre en clamp().
+         ============================================================ -->
+    <section class="hero" aria-labelledby="hero-titre">
+      <h1 id="hero-titre">NOM DE L'ÉVÉNEMENT</h1>
+      <!-- TODO : <p> date + lieu (élément <time datetime="…">), accroche -->
+      <a href="#billetterie" class="btn">Réserver ma place</a>
+    </section>
+
+    <!-- ============================================================
+         PROGRAMME EN GRILLE : ≥ 6 créneaux, sur 2 jours ou 2 scènes.
+         Exigence 2 : grid-template-areas (exemple fourni dans
+         layout.css : zones "titre", "jour1", "jour2") et/ou subgrid.
+         Chaque créneau : <time>, titre, lieu/scène.
+         ============================================================ -->
+    <section id="programme" class="section programme" aria-labelledby="programme-titre">
+      <h2 id="programme-titre">Programme</h2>
+      <!-- TODO : jour 1 (grid-area: jour1) : <h3> + liste de créneaux -->
+      <!-- TODO : jour 2 (grid-area: jour2) : <h3> + liste de créneaux -->
+    </section>
+
+    <!-- ============================================================
+         INTERVENANTS / ARTISTES EN CARTES : ≥ 6 cartes.
+         Carte = <article> : image (alt pertinent !), nom (<h3>), rôle,
+         bio, lien. Exigence 2 : subgrid pour aligner les contenus.
+         Exigence 3 : composant piloté par container query, utilisé
+         dans DEUX contextes de largeurs différentes.
+         ============================================================ -->
+    <section id="intervenants" class="section speakers" aria-labelledby="intervenants-titre">
+      <h2 id="intervenants-titre">Intervenants</h2>
+      <!-- TODO : <ul role="list"> de <li><article class="card">…</article></li> -->
+    </section>
+
+    <!-- ============================================================
+         BILLETTERIE : ≥ 3 offres (prix, contenu, bouton), une offre
+         mise en avant. Exigence 4 : idéal pour :has(), ex.
+         .offer:has(.offer__badge) { … }
+         ============================================================ -->
+    <section id="billetterie" class="section" aria-labelledby="billetterie-titre">
+      <h2 id="billetterie-titre">Billetterie</h2>
+      <!-- TODO : liste d'offres -->
+    </section>
+
+    <!-- ============================================================
+         FAQ : ≥ 5 questions en <details>/<summary> (pas de JS !).
+         Exigence 6 : une transition à l'ouverture est bienvenue.
+         ============================================================ -->
+    <section id="faq" class="section" aria-labelledby="faq-titre">
+      <h2 id="faq-titre">Questions fréquentes</h2>
+      <!-- TODO :
+      <details class="faq-item">
+        <summary>Question ?</summary>
+        <p>Réponse.</p>
+      </details>
+      -->
+    </section>
+
+  </main>
+
+  <!-- ============================================================
+       FOOTER : contact, réseaux (fictifs), mention « événement
+       fictif — projet étudiant », crédits des images et polices.
+       ============================================================ -->
+  <footer class="site-footer">
+    <p>Événement fictif — projet étudiant, module CSS avancé.</p>
+    <!-- TODO : contact, réseaux, crédits -->
+  </footer>
+
+  <!-- JavaScript facultatif (≤ 20 lignes, justifié dans le README) :
+  <script src="js/main.js" defer></script>
+  -->
+</body>
+</html>

@@ -1,0 +1,34 @@
+/* ==========================================================================
+   components.css — Layer « components »
+   Rôle : les COMPOSANTS réutilisables (bouton, carte, offre, item de FAQ…).
+   Un composant = un bloc de nesting. Convention de nommage à annoncer dans
+   le README (ex. BEM : .card, .card__title, .card--featured).
+   ========================================================================== */
+
+@layer components {
+  /* Exemple de composant avec nesting natif (exigences 1 et 6) */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-s);
+    background-color: var(--color-accent);
+    color: var(--color-surface);
+    text-decoration: none;
+    transition: translate var(--duration-fast) var(--ease-out);
+
+    &:hover {
+      translate: 0 -2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+
+  /* TODO : .card (subgrid : grid-row: span N; grid-template-rows: subgrid;)
+     TODO : @container speakers (inline-size > 40rem) { .card { … } }
+     TODO : .offer et .offer:has(.offer__badge) (exigence 4)
+     TODO : .faq-item (details/summary), .nav, @keyframes… */
+}

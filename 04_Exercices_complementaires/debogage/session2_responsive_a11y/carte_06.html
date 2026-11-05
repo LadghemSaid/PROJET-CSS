@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exercice de débogage n°6 — Session 2</title>
+<style>
+  :root {
+    --papier: #fbf7ef; --encre: #1d1a26; --discret: #5b5566; --bord: #d9d1c3;
+    --signal: #c1121f; --accent: #3a0ca3; --code-fond: #1d1a26; --code-texte: #f3eefc;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--papier); color: var(--encre);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .page { max-width: 1100px; margin-inline: auto; padding: 1.25rem 1rem 3rem; }
+  .carte { background: #fff; border: 2px solid var(--encre); border-radius: 16px;
+           padding: 1.25rem 1.5rem 1.5rem; margin-block: 1.5rem; }
+  .carte__tete { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem;
+                 border-bottom: 2px dashed var(--bord); padding-bottom: .75rem; margin-bottom: 1rem; }
+  .carte__num { font: 800 .85rem/1 ui-monospace, Consolas, monospace; letter-spacing: .08em;
+                text-transform: uppercase; color: var(--discret); }
+  .carte h2 { margin: 0; font-size: 1.5rem; line-height: 1.2; flex: 1 1 16rem; }
+  .pastilles { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .pastille { padding: .15rem .6rem; border-radius: 999px; font-size: .8rem; font-weight: 700;
+              border: 2px solid var(--encre); white-space: nowrap; }
+  .pastille--defauts { background: var(--signal); border-color: var(--signal); color: #fff; }
+  .carte__corps { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+  .bloc h3 { margin: 0 0 .35rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--discret); }
+  .consigne { margin: 0 0 1rem; padding: .5rem .85rem; border: 1px solid var(--bord); border-radius: 8px;
+              background: var(--papier); font-size: .95rem; }
+  .attendu { margin: 0 0 1rem; padding: .75rem 1rem; border-left: 5px solid var(--accent);
+             background: #f1edfb; border-radius: 0 10px 10px 0; font-weight: 600; }
+  .test { margin: 0 0 1rem; font-size: .9rem; color: var(--discret); }
+  .ecran { position: relative; border: 2px solid var(--encre); border-radius: 10px; overflow: hidden;
+           background: #fff; width: max-content; }
+  .ecran iframe { display: block; border: 0; }
+  .ecran__dim { font: .75rem ui-monospace, Consolas, monospace; color: var(--discret); margin-top: .25rem; }
+  .barre-mobile { position: absolute; inset: auto 0 0 0; height: 64px; display: grid; place-items: center;
+                  background: rgb(60 60 67 / .92); color: #fff; font: 600 .7rem/1.2 system-ui, sans-serif;
+                  text-align: center; padding: 0 1rem; }
+  pre { margin: 0; padding: .75rem 0; border-radius: 10px; background: var(--code-fond); color: var(--code-texte);
+        font: .85rem/1.45 ui-monospace, "Cascadia Code", Consolas, monospace; overflow-x: auto; tab-size: 2; }
+  pre .l { display: block; padding: 0 1rem 0 0; counter-increment: ligne; white-space: pre; }
+  pre .l::before { content: counter(ligne); display: inline-block; width: 2.5rem; padding-right: .75rem;
+                   text-align: right; color: #8a8199; user-select: none; }
+  pre { counter-reset: ligne; }
+  pre.html .l { white-space: pre-wrap; overflow-wrap: anywhere; padding-left: 3.25rem; text-indent: -3.25rem; }
+  .code-css { margin-top: 1.25rem; }
+  .nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .nav a, .bouton { color: var(--accent); font-weight: 700; }
+  .bouton { padding: .5rem 1rem; border: 2px solid var(--accent); border-radius: 999px; background: #fff;
+            cursor: pointer; font: inherit; font-weight: 700; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--signal); outline-offset: 3px; }
+  @media screen and (max-width: 800px) { .carte__corps { grid-template-columns: minmax(0, 1fr); } .ecran { max-width: 100%; overflow: auto; } }
+  @media print {
+    @page { size: A4 portrait; margin: 12mm; }
+    body { background: #fff; font-size: 11pt; }
+    .page { max-width: none; padding: 0; }
+    .nav, .ecran-seul { display: none !important; }
+    .carte { break-before: page; break-inside: avoid; margin: 0; border-width: 1.5pt; }
+    .carte:first-of-type { break-before: auto; }
+    pre { font-size: 8pt; background: #fff; color: #000; border: 1pt solid #999; overflow: visible; }
+    .code-css pre { columns: 2; column-gap: 0; column-rule: 1pt dotted #999; }
+    pre .l { white-space: pre-wrap; overflow-wrap: anywhere; padding-left: 3.25rem; text-indent: -3.25rem; break-inside: avoid; }
+    .carte__corps { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+    .carte--etroite .carte__corps { grid-template-columns: auto minmax(0, 1fr); }
+    .code-css { margin-top: .75rem; }
+    .consigne { margin: 0 0 .5rem; padding: 1.5mm 3mm; font-size: 9.5pt; }
+    .carte h2 { font-size: 16pt; }
+    .ecran { zoom: 0.8; }
+    .carte:not(.carte--etroite) .infos { display: grid; grid-template-columns: 1fr 1.4fr; gap: .75rem; }
+    .carte--haute .ecran { zoom: 0.7; }
+    .ecran__dim::after { content: " (réduit pour l'impression)"; }
+    pre .l::before { color: #777; }
+    .pastille--defauts, .attendu, .barre-mobile { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="nav" aria-label="Navigation entre exercices"><a href="carte_05.html">← Exercice n°5</a><a href="index.html">Tous les exercices de la session</a><span></span></nav>
+<article class="carte carte--etroite" id="carte-06" aria-labelledby="titre-2-06">
+  <header class="carte__tete">
+    <span class="carte__num">Session 2 · Exercice de débogage n°6</span>
+    <h2 id="titre-2-06">Défilement horizontal à 320 px</h2>
+    <div class="pastilles">
+      <span class="pastille">Responsive &amp; cibles tactiles</span>
+      <span class="pastille pastille--defauts">2 défauts</span>
+    </div>
+  </header>
+  <p class="consigne"><strong>Consigne :</strong> identifier le ou les défauts, expliquer leur cause, proposer un correctif.</p>
+  <div class="carte__corps">
+    <div class="bloc">
+      <h3>Rendu actuel (bogué)</h3>
+      <div class="ecran">
+        <iframe title="Rendu de l&#x27;exercice n°6" width="320" height="330"></iframe>
+        
+      </div>
+      <p class="ecran__dim">320 × 330 px</p>
+    </div>
+    <div class="bloc infos">
+      <div><h3>Effet attendu</h3>
+      <p class="attendu">À 320 px, aucun défilement horizontal (l&#x27;image s&#x27;adapte à la largeur) et les liens de partage sont faciles à toucher (44 × 44 px conseillé, 24 × 24 px minimum WCAG 2.2).</p>
+      </div>
+      <div class="code-html"><h3>HTML</h3><pre class="html"></pre></div>
+    </div>
+  </div>
+  <div class="bloc code-css"><h3>CSS (code complet de l&#x27;exercice)</h3><pre></pre></div>
+  <template>
+<style>
+body {
+  margin: 0;
+  padding: 12px;
+  font-family: system-ui, sans-serif;
+}
+.article img {
+  display: block;
+  width: 400px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.article h2 { margin: 10px 0 6px; }
+.partage { display: flex; gap: 4px; }
+.partage a {
+  padding: 2px 4px;
+  border: 1px solid #adb5bd;
+  border-radius: 4px;
+  color: #212529;
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+</style>
+<article class="article">
+  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 18'%3E%3Crect width='40' height='18' fill='%2390be6d'/%3E%3Cpath d='M0 18 14 6l10 8 6-4 10 8z' fill='%23277da1'/%3E%3Ccircle cx='31' cy='5' r='3' fill='%23f9c74f'/%3E%3C/svg%3E" alt="Le parc de la Citadelle au coucher du soleil">
+  <h2>Le site du festival</h2>
+  <nav class="partage" aria-label="Partager">
+    <a href="#">Mastodon</a> <a href="#">E-mail</a> <a href="#">Copier</a>
+  </nav>
+</article>
+  </template>
+</article>
+</div>
+<script>
+  // Pour chaque fiche : on lit le <style> et le HTML du <template>, on les injecte
+  // dans l'iframe de rendu ET on affiche exactement le même texte dans les <pre>.
+  for (const carte of document.querySelectorAll('.carte')) {
+    const tpl = carte.querySelector('template').content.cloneNode(true);
+    const css = tpl.querySelector('style').textContent.trim();
+    tpl.querySelector('style').remove();
+    const div = document.createElement('div'); div.append(tpl);
+    const html = div.innerHTML.trim();
+    carte.querySelector('iframe').srcdoc =
+      `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${css}</style></head><body>${html}</body></html>`;
+    for (const [sel, texte] of [['.code-css pre', css], ['.code-html pre', html]]) {
+      const pre = carte.querySelector(sel);
+      for (const ligne of texte.split('\n')) {
+        const span = document.createElement('span'); span.className = 'l';
+        span.textContent = ligne || ' '; pre.append(span);
+      }
+    }
+  }
+</script>
+</body>
+</html>

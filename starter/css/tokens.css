@@ -1,0 +1,80 @@
+/* ==========================================================================
+   tokens.css — Design tokens (rangés dans le layer « base »)
+   --------------------------------------------------------------------------
+   Deux niveaux :
+   1. PRIMITIFS : valeurs brutes (palette, échelles). Nommés d'après ce
+      qu'ils SONT : --color-violet-600, --space-4…
+      → jamais utilisés directement dans les composants.
+   2. SÉMANTIQUES : rôles. Nommés d'après ce qu'ils FONT : --color-surface,
+      --color-accent, --space-section…
+      → les seuls utilisés dans layout.css et components.css.
+   Changer de thème = modifier les sémantiques, pas les composants.
+   Les valeurs ci-dessous sont des EXEMPLES : remplacez-les par l'identité
+   de votre événement (exigence 1).
+   ========================================================================== */
+
+@layer base {
+  :root {
+    /* ---------- 1. Primitifs ---------------------------------------- */
+
+    /* Palette (oklch : L = luminosité perçue, C = chroma, H = teinte) */
+    --color-sand-50: oklch(98% 0.01 85);
+    --color-sand-200: oklch(90% 0.03 85);
+    --color-night-900: oklch(20% 0.03 280);
+    --color-night-700: oklch(32% 0.04 280);
+    --color-violet-300: oklch(78% 0.12 300);
+    --color-violet-600: oklch(50% 0.2 300);
+    /* TODO : ajouter les teintes de votre palette (accent 2, succès, erreur…) */
+
+    /* Échelle d'espacements (base 0.25rem) */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-12: 3rem;
+
+    /* Rayons, durées, courbes */
+    --radius-s: 0.25rem;
+    --radius-m: 0.75rem;
+    --duration-fast: 150ms;
+    --duration-base: 300ms;
+    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    /* Typographie */
+    --font-sans: system-ui, sans-serif;
+    /* TODO : police de titre (Google Fonts via <link> dans index.html) */
+
+    /* ---------- 2. Sémantiques -------------------------------------- */
+
+    /* Indispensable pour que light-dark() bascule et que les éléments
+       natifs (champs, barres de défilement) suivent le thème. */
+    color-scheme: light dark;
+
+    /* light-dark(valeur en thème clair, valeur en thème sombre) */
+    --color-surface: light-dark(var(--color-sand-50), var(--color-night-900));
+    --color-surface-raised: light-dark(white, var(--color-night-700));
+    --color-text: light-dark(var(--color-night-900), var(--color-sand-50));
+    --color-accent: light-dark(var(--color-violet-600), var(--color-violet-300));
+    --color-focus: var(--color-accent);
+    /* TODO : --color-text-muted, --color-border, --color-on-accent…
+       (vérifier les contrastes AA dans les DEUX thèmes) */
+
+    /* Typographie fluide : clamp(minimum, valeur préférée, maximum) */
+    --font-size-body: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+    --font-size-h1: clamp(2.25rem, 1.5rem + 4vw, 4.5rem);
+    /* TODO : --font-size-h2, --font-size-h3 */
+
+    --space-section: clamp(var(--space-8), 5vw, var(--space-12));
+    --radius-card: var(--radius-m);
+    /* TODO : --duration-hover, --space-card… */
+  }
+
+  /* BONUS TECHNIQUE (exigence 5) — bascule CSS-only, à décommenter si vous ajoutez
+     <input type="checkbox" id="theme-toggle"> dans le header :
+  :root:has(#theme-toggle:checked) {
+    color-scheme: dark;
+  }
+  */
+}

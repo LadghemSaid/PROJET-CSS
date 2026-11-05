@@ -1,0 +1,1879 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz de révision — CSS avancé</title>
+<meta name="description" content="Quiz de révision à projeter (évaluation formative, non notée) pour le module CSS avancé (Licence 3). Fonctionne en local, sans dépendance.">
+<style>
+/* =====================================================================
+   Quiz de révision — CSS avancé (Licence 3)
+   ---------------------------------------------------------------------
+   Évaluation formative, non notée : l'enseignant projette une question,
+   les étudiants répondent (individuellement ou en groupe), puis la
+   réponse est révélée et expliquée.
+   Architecture en couches (@layer) : l'ordre ci-dessous fixe la priorité,
+   de la plus faible (reset) à la plus forte (impression).
+   Aucune dépendance externe : polices système, icônes en SVG inline.
+   ===================================================================== */
+@layer reset, tokens, base, layout, composants, utilitaires, impression;
+
+/* ---------- 1. Reset minimal ---------------------------------------- */
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; }
+  html { -webkit-text-size-adjust: none; text-size-adjust: none; }
+  body { min-block-size: 100dvh; line-height: 1.5; }
+  img, svg { display: block; max-inline-size: 100%; }
+  button, input, select { font: inherit; color: inherit; }
+  [hidden] { display: none !important; } /* utilitaire justifié : hidden doit toujours gagner */
+}
+
+/* ---------- 2. Design tokens ---------------------------------------- */
+@layer tokens {
+  /* Propriété typée : permet d'animer la progression du minuteur. */
+  @property --progression {
+    syntax: '<number>';
+    inherits: true;
+    initial-value: 1;
+  }
+
+  :root {
+    /* Thème clair par défaut ; light-dark() bascule tout en thème sombre. */
+    color-scheme: light;
+
+    /* -- Primitifs -- */
+    --encre-sombre: oklch(22% 0.02 255);
+    --encre-claire: oklch(96% 0.006 255);
+
+    /* -- Sémantiques : tons neutres, un seul accent (bleu ardoise) -- */
+    --fond:          light-dark(oklch(97.5% 0.004 255), oklch(19% 0.012 255));
+    --fond-2:        light-dark(oklch(100% 0 0),        oklch(24% 0.014 255));
+    --fond-3:        light-dark(oklch(92% 0.008 255),   oklch(31% 0.016 255));
+    --texte:         light-dark(var(--encre-sombre),    var(--encre-claire));
+    --texte-doux:    light-dark(oklch(42% 0.015 255),   oklch(78% 0.012 255));
+    --bordure:       light-dark(oklch(84% 0.01 255),    oklch(40% 0.016 255));
+    --accent:        light-dark(oklch(42% 0.1 255),     oklch(78% 0.08 255));
+    --accent-texte:  light-dark(white,                  var(--encre-sombre));
+    --succes:        light-dark(oklch(44% 0.1 155),     oklch(78% 0.11 155));
+    --attention:     light-dark(oklch(52% 0.11 65),     oklch(80% 0.11 75));
+    --alerte:        light-dark(oklch(48% 0.14 28),     oklch(74% 0.12 28));
+    --focus:         light-dark(oklch(45% 0.18 260),    oklch(85% 0.14 95));
+
+    /* Repères des réponses : lettre + forme (daltonisme), couleur discrète. */
+    --rep-a: light-dark(oklch(50% 0.11 28),  oklch(74% 0.1 28));    /* triangle */
+    --rep-b: light-dark(oklch(46% 0.1 255),  oklch(76% 0.08 255));  /* losange */
+    --rep-c: light-dark(oklch(55% 0.1 75),   oklch(80% 0.1 80));    /* cercle */
+    --rep-d: light-dark(oklch(46% 0.08 160), oklch(76% 0.08 160));  /* carré */
+
+    /* Bloc de code : toujours sombre pour un contraste maximal. */
+    --code-fond:   oklch(20% 0.015 255);
+    --code-texte:  oklch(94% 0.006 255);
+    --code-prop:   oklch(80% 0.1 230);
+    --code-valeur: oklch(86% 0.1 95);
+    --code-sel:    oklch(82% 0.11 150);
+    --code-at:     oklch(78% 0.12 320);
+    --code-com:    oklch(70% 0.02 255);
+    --code-fn:     oklch(83% 0.09 50);
+
+    /* Typographie fluide : lisible au fond de la salle. */
+    --police: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --police-code: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, "DejaVu Sans Mono", monospace;
+    --t-xs: clamp(0.9rem, 0.8rem + 0.3vw, 1.1rem);
+    --t-s:  clamp(1rem, 0.9rem + 0.4vw, 1.3rem);
+    /* min(vw, vh) : la taille suit aussi la HAUTEUR (vidéoprojecteurs 720p). */
+    --t-m:  clamp(1.05rem, min(0.9rem + 1.1vw, 3.1vh), 2.2rem);
+    --t-l:  clamp(1.4rem, min(1rem + 2vw, 4.8vh), 3.2rem);
+    --t-xl: clamp(1.8rem, 1.1rem + 2.2vw, 3.4rem);
+    --t-code: clamp(0.9rem, min(0.4rem + 1.15vw, 2.55vh), 2rem);
+
+    /* Espacements et formes : angles peu arrondis, ombres légères. */
+    --e-1: 0.25rem; --e-2: 0.5rem; --e-3: 0.75rem; --e-4: 1rem;
+    --e-5: 1.5rem;  --e-6: 2rem;   --e-7: 3rem;
+    --rayon: 0.35rem;
+    --rayon-l: 0.5rem;
+    --ombre: 0 0.1rem 0.4rem oklch(0% 0 0 / 0.12);
+    --duree: 200ms;
+  }
+
+  /* Bascule manuelle (bouton « Thème ») : l'attribut gagne sur le défaut. */
+  :root[data-theme="light"] { color-scheme: light; }
+  :root[data-theme="dark"]  { color-scheme: dark; }
+}
+
+/* ---------- 3. Base -------------------------------------------------- */
+@layer base {
+  body {
+    font-family: var(--police);
+    font-size: var(--t-s);
+    background: var(--fond);
+    color: var(--texte);
+  }
+  h1, h2, h3 { line-height: 1.15; text-wrap: balance; }
+  p { text-wrap: pretty; }
+  a { color: var(--accent); }
+
+  /* Focus toujours visible au clavier, jamais supprimé. */
+  :focus-visible {
+    outline: 0.25rem solid var(--focus);
+    outline-offset: 0.2rem;
+  }
+
+  code {
+    font-family: var(--police-code);
+    font-size: 0.92em;
+    padding: 0.05em 0.3em;
+    border-radius: 0.25em;
+    background: color-mix(in oklab, var(--texte) 9%, transparent);
+  }
+}
+
+/* ---------- 4. Mise en page ------------------------------------------ */
+@layer layout {
+  .ecran { min-block-size: 100dvh; }
+
+  /* Accueil : en-tête + grille de banques qui s'adapte seule. */
+  .accueil {
+    display: grid;
+    align-content: start;
+    gap: var(--e-6);
+    padding: var(--e-6) clamp(1rem, 4vw, 4rem);
+    max-inline-size: 110rem;
+    margin-inline: auto;
+  }
+  .grille-banques {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+    gap: var(--e-5);
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Écran de question : barre / contenu. */
+  .scene {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    block-size: 100dvh;
+    overflow: hidden;
+  }
+
+  .contenu {
+    display: grid;
+    gap: var(--e-4) var(--e-5);
+    padding: var(--e-4) clamp(1rem, 3vw, 3rem);
+    min-block-size: 0;
+    overflow: auto;
+    align-content: start;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "enonce"
+      "reponses"
+      "explication";
+
+    /* Avec un extrait de code (:has !), on passe sur deux colonnes :
+       le code à gauche, les réponses et l'explication à droite. */
+    &:has(.extraits) {
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+      grid-template-rows: auto auto 1fr;
+      grid-template-areas:
+        "enonce   enonce"
+        "extraits reponses"
+        "extraits explication";
+    }
+  }
+  .enonce      { grid-area: enonce; }
+  .extraits    { grid-area: extraits; }
+  .zone-reponses { grid-area: reponses; }
+  .explication { grid-area: explication; }
+
+  /* Largeur moyenne (1024 px…) : la colonne de droite est étroite, donc
+     l'explication passe sur toute la largeur, sous le code. */
+  @media (width < 75rem) {
+    .contenu:has(.extraits) {
+      grid-template-rows: auto;
+      grid-template-areas:
+        "enonce      enonce"
+        "extraits    reponses"
+        "explication explication";
+    }
+  }
+
+  /* Écran étroit (portable en mode fenêtre) : tout en une colonne. */
+  @media (width < 60rem) {
+    .contenu:has(.extraits) {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+      grid-template-areas: "enonce" "extraits" "reponses" "explication";
+    }
+  }
+}
+
+/* ---------- 5. Composants -------------------------------------------- */
+@layer composants {
+
+  /* --- Boutons --- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--e-2);
+    min-block-size: 2.75rem;            /* cible confortable (> 24 px AA) */
+    padding: var(--e-2) var(--e-4);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
+    background: var(--fond-2);
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--texte);
+    transition: background-color var(--duree), border-color var(--duree);
+
+    &:hover { border-color: var(--accent); }
+    &:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    &.principal {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-texte);
+    }
+    & kbd {
+      font-family: var(--police-code);
+      font-size: 0.75em;
+      padding: 0 0.35em;
+      border: 1px solid currentColor;
+      border-radius: 0.25em;
+      opacity: 0.8;
+    }
+  }
+
+  /* --- Accueil --- */
+  .entete-accueil {
+    display: grid;
+    gap: var(--e-2);
+    padding-block-end: var(--e-4);
+    border-block-end: 2px solid var(--accent);
+
+    & .surtitre {
+      font-size: var(--t-xs);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--texte-doux);
+    }
+    & h1 {
+      font-size: var(--t-xl);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    & p { color: var(--texte-doux); font-size: var(--t-s); max-inline-size: 70ch; }
+  }
+
+  .reglages {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--e-3) var(--e-5);
+    padding: var(--e-3) var(--e-4);
+    border-radius: var(--rayon-l);
+    background: var(--fond-2);
+    border: 1px solid var(--bordure);
+
+    & label { display: inline-flex; align-items: center; gap: var(--e-2); font-weight: 600; }
+    & input[type="number"] {
+      inline-size: 5.5rem;
+      padding: var(--e-1) var(--e-2);
+      border: 1px solid var(--bordure);
+      border-radius: var(--rayon);
+      background: var(--fond);
+      text-align: center;
+    }
+    & .actions { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: var(--e-2); }
+  }
+
+  .aide-reglage {
+    font-size: var(--t-xs);
+    color: var(--texte-doux);
+  }
+
+  .carte-banque {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    gap: var(--e-2);
+    padding: var(--e-4) var(--e-5) var(--e-5);
+    border-radius: var(--rayon-l);
+    background: var(--fond-2);
+    border: 1px solid var(--bordure);
+    border-block-start: 0.3rem solid var(--accent);
+    box-shadow: var(--ombre);
+
+    & .moment {
+      font-size: var(--t-xs);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    & h2 { font-size: var(--t-m); font-weight: 700; }
+    & p { color: var(--texte-doux); font-size: var(--t-xs); }
+    & .boutons { display: flex; flex-wrap: wrap; gap: var(--e-2); margin-block-start: var(--e-2); }
+    & .btn { padding-inline: var(--e-3); font-size: var(--t-xs); }
+  }
+
+  /* --- Barre supérieure de la question --- */
+  .barre {
+    display: flex;
+    align-items: center;
+    gap: var(--e-4);
+    padding: var(--e-3) clamp(1rem, 3vw, 3rem);
+    background: var(--fond-2);
+    border-block-end: 1px solid var(--bordure);
+
+    /* Boutons et compteur ne passent jamais à la ligne ; le titre s'abrège si la place manque. */
+    & .btn, & .compteur { white-space: nowrap; flex-shrink: 0; }
+    & .titre-banque {
+      min-inline-size: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 700;
+      font-size: var(--t-s);
+    }
+    & .nav { display: flex; gap: var(--e-2); flex-shrink: 0; }
+    & .compteur {
+      font-size: var(--t-m);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      margin-inline-start: auto;
+    }
+    & .chrono { flex-shrink: 0; }
+  }
+
+  /* Petite jauge de progression dans la banque. */
+  .jauge {
+    flex: 1 1 4rem;
+    min-inline-size: 2rem;
+    max-inline-size: 22rem;
+    block-size: 0.4rem;
+    border-radius: 999px;
+    background: var(--fond-3);
+    overflow: hidden;
+    & span {
+      display: block;
+      block-size: 100%;
+      inline-size: calc(var(--avance, 0) * 100%);
+      background: var(--accent);
+      transition: inline-size 400ms;
+    }
+  }
+
+  /* --- Minuteur circulaire (conic-gradient + propriété typée) --- */
+  .chrono {
+    --taille: clamp(3rem, min(2.5rem + 3vw, 9vh), 5.5rem);
+    --couleur: var(--accent);
+    position: relative;
+    display: grid;
+    place-items: center;
+    inline-size: var(--taille);
+    aspect-ratio: 1;
+    border: 0;
+    border-radius: 50%;
+    padding: 0;
+    cursor: pointer;
+    background:
+      conic-gradient(var(--couleur) calc(var(--progression) * 1turn), var(--fond-3) 0);
+    font-size: calc(var(--taille) * 0.34);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+
+    /* Disque intérieur : transforme le camembert en anneau. */
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 10%;
+      border-radius: 50%;
+      background: var(--fond-2);
+    }
+    & span { position: relative; }
+
+    &[data-etat="urgent"] { --couleur: var(--attention); }
+    &[data-etat="fini"]   { --couleur: var(--texte-doux); }
+    &[data-etat="pause"]  { opacity: 0.6; }
+    &[data-etat="off"]    { display: none; }
+  }
+
+  /* --- Énoncé --- */
+  .enonce {
+    font-size: var(--t-l);
+    font-weight: 700;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  /* --- Extraits de code --- */
+  .extraits { display: grid; gap: var(--e-3); align-content: start; min-inline-size: 0; }
+  .extrait {
+    position: relative;
+    margin: 0;
+    padding: var(--e-4) var(--e-5) var(--e-3);
+    border-radius: var(--rayon-l);
+    background: var(--code-fond);
+    color: var(--code-texte);
+    font-family: var(--police-code);
+    font-size: var(--t-code);
+    line-height: 1.4;
+    overflow: auto;
+    tab-size: 2;
+    /* Sécurité : une ligne trop longue passe à la ligne plutôt que d'être masquée. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border: 1px solid oklch(38% 0.015 255);
+
+    /* Annule le style du code inline (fond, padding) dans un bloc. */
+    & code { background: none; padding: 0; font-size: inherit; }
+
+    /* Étiquette de langage (CSS / HTML) lue dans data-langage. */
+    &::before {
+      content: attr(data-langage);
+      position: absolute;
+      inset-block-start: 0.35rem;
+      inset-inline-end: 0.8rem;
+      font-family: var(--police);
+      font-size: 0.6em;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--code-com);
+    }
+
+    /* Coloration syntaxique (classes posées par le JS). */
+    & .p  { color: var(--code-prop); }
+    & .v  { color: var(--code-valeur); }
+    & .s  { color: var(--code-sel); }
+    & .at { color: var(--code-at); font-weight: 700; }
+    & .c  { color: var(--code-com); font-style: italic; }
+    & .f  { color: var(--code-fn); }
+    & .imp { color: oklch(76% 0.14 28); font-weight: 700; }
+  }
+
+  /* --- Réponses --- */
+  .zone-reponses { container: reponses / inline-size; }
+
+  .reponses {
+    display: grid;
+    gap: var(--e-3);
+    padding: 0;
+    list-style: none;
+    grid-template-columns: 1fr;
+
+    /* Assez de place (sans code) : grille 2 × 2. */
+    @container reponses (width > 60rem) {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--e-4);
+    }
+  }
+
+  /* Chaque réponse : lettre + forme (repérables sans la couleur),
+     liseré de couleur discret à gauche. */
+  .reponse {
+    --c-rep: var(--rep-a);
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: center;
+    gap: var(--e-3);
+    min-block-size: clamp(3rem, 0.5rem + 8vh, 7rem);
+    padding: var(--e-3) var(--e-4);
+    border: 2px solid var(--bordure);
+    border-inline-start: 0.5rem solid var(--c-rep);
+    border-radius: var(--rayon-l);
+    background: var(--fond-2);
+    color: var(--texte);
+    font-size: var(--t-m);
+    font-weight: 600;
+    line-height: 1.25;
+    transition: opacity 300ms, background-color 300ms, border-color 300ms;
+
+    &:nth-child(2) { --c-rep: var(--rep-b); }
+    &:nth-child(3) { --c-rep: var(--rep-c); }
+    &:nth-child(4) { --c-rep: var(--rep-d); }
+
+    & .forme { inline-size: 1.1em; fill: var(--c-rep); }
+    & .lettre {
+      display: grid;
+      place-items: center;
+      inline-size: 1.8em;
+      aspect-ratio: 1;
+      border-radius: var(--rayon);
+      background: var(--fond-3);
+      font-size: 1em;
+      font-weight: 700;
+    }
+    & .verdict { font-size: 0.85em; font-weight: 700; color: var(--succes); white-space: nowrap; }
+
+    /* Après révélation : la bonne réponse est encadrée, les autres s'effacent. */
+    .revele & {
+      grid-column: 1 / -1;          /* une réponse par ligne */
+      /* Les mauvaises réponses se tassent pour laisser place à l'explication. */
+      &:not(.bonne) {
+        opacity: 0.5;
+        min-block-size: 0;
+        padding-block: var(--e-1);
+        font-size: 0.8em;
+      }
+      &.bonne {
+        border-color: var(--succes);
+        background: color-mix(in oklab, var(--succes) 12%, var(--fond-2));
+      }
+    }
+  }
+
+  /* --- Explication --- */
+  .explication {
+    padding: var(--e-4) var(--e-5);
+    border-radius: var(--rayon-l);
+    background: var(--fond-2);
+    border: 1px solid var(--bordure);
+    border-inline-start: 0.4rem solid var(--succes);
+    font-size: var(--t-s);
+    align-self: start;
+
+    & strong { color: var(--succes); }
+    @media (prefers-reduced-motion: no-preference) {
+      animation: apparition 300ms ease-out;
+    }
+  }
+  @keyframes apparition {
+    from { opacity: 0; }
+  }
+
+  /* --- Fin de banque --- */
+  .fin {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--e-5);
+    padding: var(--e-6);
+    text-align: center;
+
+    & h1 { font-size: var(--t-xl); font-weight: 700; }
+    & p { font-size: var(--t-m); color: var(--texte-doux); max-inline-size: 50ch; }
+    & .boutons { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--e-3); }
+  }
+
+  /* --- Boîtes de dialogue natives --- */
+  dialog {
+    margin: auto;                 /* le reset (* { margin: 0 }) supprimait le centrage natif */
+    max-inline-size: min(92vw, 44rem);
+    padding: var(--e-6);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon-l);
+    background: var(--fond-2);
+    color: var(--texte);
+    box-shadow: var(--ombre);
+
+    &::backdrop { background: oklch(0% 0 0 / 0.5); }
+    & h2 { margin-block-end: var(--e-4); }
+    & table { border-collapse: collapse; inline-size: 100%; }
+    & th, & td { text-align: start; padding: var(--e-1) var(--e-3); border-block-end: 1px solid var(--bordure); }
+    & kbd { font-family: var(--police-code); font-weight: 700; }
+    & form { display: flex; justify-content: end; margin-block-start: var(--e-5); }
+  }
+
+  /* Le module d'impression est invisible à l'écran. */
+  .impression { display: none; }
+}
+
+/* ---------- 6. Utilitaires ------------------------------------------- */
+@layer utilitaires {
+  .visuellement-cache {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* Respect des préférences : on coupe les mouvements non essentiels. */
+@media (prefers-reduced-motion: reduce) {
+  @layer utilitaires {
+    *, *::before, *::after {
+      animation-duration: 1ms !important;   /* utilitaire a11y justifié */
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
+
+/* ---------- 7. Impression : la banque avec son corrigé --------------- */
+@layer impression {
+  @media print {
+    :root { color-scheme: light; }
+    @page { size: A4; margin: 15mm; }
+    body { background: white; color: black; font-size: 11pt; }
+    .ecran, dialog { display: none !important; }
+
+    .impression {
+      display: block;
+      & .surtitre { font-size: 9pt; letter-spacing: 0.06em; text-transform: uppercase; color: #444; }
+      & h1 { font-size: 18pt; margin-block: 1mm 2mm; }
+      & .sous-titre { color: #444; margin-block-end: 6mm; padding-block-end: 3mm; border-block-end: 1pt solid #000; }
+      & article {
+        break-inside: avoid;
+        padding-block: 4mm;
+        border-block-start: 0.5pt solid #999;
+      }
+      & h2 { font-size: 12pt; margin-block-end: 2mm; }
+      & pre {
+        margin-block: 2mm;
+        padding: 2mm 3mm;
+        border: 0.5pt solid #999;
+        border-radius: 1mm;
+        font-family: var(--police-code);
+        font-size: 9.5pt;
+        white-space: pre-wrap;
+        background: #f4f4f6;
+      }
+      & ol { margin-block: 2mm; padding-inline-start: 8mm; list-style: upper-alpha; }
+      & li.bonne { font-weight: 700; }
+      & li.bonne::after { content: "  ✔ bonne réponse"; }
+      & .expl { font-size: 10pt; color: #222; }
+      & code { background: #eee; }
+    }
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- =================== ÉCRAN 1 : ACCUEIL =================== -->
+<main class="ecran accueil" id="ecran-accueil">
+  <header class="entete-accueil">
+    <p class="surtitre">Module CSS avancé · Licence 3</p>
+    <h1>Quiz de révision</h1>
+    <p>Évaluation formative, non notée. Choisissez une banque de questions et projetez-la. Les étudiants répondent
+       individuellement ou en groupe (ardoise, papier ou main levée) ; la réponse est ensuite révélée et commentée
+       collectivement.</p>
+  </header>
+
+  <section class="reglages" aria-label="Réglages">
+    <label>Minuteur
+      <input type="number" id="duree" min="0" max="180" step="5" value="20" aria-describedby="aide-duree">
+      s
+    </label>
+    <span id="aide-duree" class="aide-reglage">0 = sans minuteur</span>
+    <div class="actions">
+      <button class="btn" type="button" id="btn-theme">Thème clair/sombre</button>
+      <button class="btn" type="button" data-action="aide">Raccourcis <kbd>?</kbd></button>
+    </div>
+  </section>
+
+  <ul class="grille-banques" id="grille-banques"></ul>
+</main>
+
+<!-- =================== ÉCRAN 2 : QUESTION =================== -->
+<div class="ecran scene" id="ecran-question" hidden>
+  <header class="barre">
+    <button class="btn" type="button" data-action="menu" title="Retour à l'accueil (Échap)">← Accueil</button>
+    <span class="titre-banque" id="q-banque"></span>
+    <div class="jauge" aria-hidden="true"><span id="q-jauge"></span></div>
+    <span class="compteur" id="q-compteur"></span>
+    <button class="chrono" type="button" id="chrono" title="Pause / reprise (P), relancer (R)">
+      <span id="chrono-texte">20</span>
+      <span class="visuellement-cache">secondes restantes</span>
+    </button>
+    <div class="nav">
+      <button class="btn" type="button" data-action="precedente" title="Question précédente (←)" aria-label="Question précédente">←</button>
+      <button class="btn principal" type="button" id="btn-principal" data-action="principal">Révéler <kbd>Espace</kbd></button>
+    </div>
+  </header>
+
+  <section class="contenu" id="q-contenu" aria-live="polite">
+    <h1 class="enonce" id="q-enonce"></h1>
+    <!-- .extraits inséré si la question contient du code -->
+    <div class="zone-reponses"><ol class="reponses" id="q-reponses"></ol></div>
+    <div class="explication" id="q-explication" hidden></div>
+  </section>
+</div>
+
+<!-- =================== ÉCRAN 3 : FIN =================== -->
+<main class="ecran fin" id="ecran-fin" hidden>
+  <h1>Fin de la banque de questions</h1>
+  <p id="fin-resume"></p>
+  <div class="boutons">
+    <button class="btn" type="button" data-action="revoir">Revoir depuis le début</button>
+    <button class="btn" type="button" data-action="imprimer-courante">Imprimer avec corrigé</button>
+    <button class="btn principal" type="button" data-action="menu">Retour à l'accueil</button>
+  </div>
+</main>
+
+<!-- Version imprimable (générée à la demande) -->
+<section class="impression" id="impression" aria-hidden="true"></section>
+
+<!-- Aide clavier -->
+<dialog id="dlg-aide" aria-labelledby="titre-aide">
+  <h2 id="titre-aide">Raccourcis clavier</h2>
+  <table>
+    <tr><th><kbd>Espace</kbd> / <kbd>Entrée</kbd></th><td>Révéler la réponse, puis question suivante</td></tr>
+    <tr><th><kbd>→</kbd> / <kbd>Page suiv.</kbd></th><td>Question suivante (compatible télécommande)</td></tr>
+    <tr><th><kbd>←</kbd> / <kbd>Page préc.</kbd></th><td>Question précédente</td></tr>
+    <tr><th><kbd>P</kbd></th><td>Pause / reprise du minuteur</td></tr>
+    <tr><th><kbd>R</kbd></th><td>Relancer le minuteur</td></tr>
+    <tr><th><kbd>F</kbd></th><td>Plein écran</td></tr>
+    <tr><th><kbd>Échap</kbd></th><td>Retour à l'accueil</td></tr>
+  </table>
+  <form method="dialog"><button class="btn principal">Fermer</button></form>
+</dialog>
+
+<script>
+'use strict';
+/* =====================================================================
+   1. BANQUES DE QUESTIONS
+   ---------------------------------------------------------------------
+   Format : { q, code?, html?, choix: [A, B, C, D], bonne: index 0–3, explication }
+   Les `backquotes` dans les textes sont rendues en <code>.
+   Notation de spécificité : (ID, classes/attributs/pseudo-classes, types).
+   ===================================================================== */
+const BANQUES = [
+{
+  id: 'positionnement-j1', titre: 'Test de positionnement — J1', moment: 'J1 · 9h30',
+  description: 'Prérequis attendus en début de module : modèle de boîte, sélecteurs, flexbox simple, unités, media queries.',
+  questions: [
+    { q: "Sans autre règle (box-sizing par défaut), quelle largeur occupe la boîte à l'écran, bordures comprises ?",
+      code: `
+.boite {
+  width: 200px;
+  padding: 20px;
+  border: 5px solid;
+  margin: 10px;
+}`,
+      choix: ["200 px", "240 px", "250 px", "270 px"], bonne: 2,
+      explication: "Par défaut `box-sizing: content-box` : width ne concerne que le contenu. 200 + 2 × 20 (padding) + 2 × 5 (bordure) = 250 px. La marge est à l'extérieur de la bordure et ne compte pas." },
+
+    { q: "Quelle est la largeur de la zone de contenu ?",
+      code: `
+.boite {
+  box-sizing: border-box;
+  width: 200px;
+  padding: 20px;
+  border: 5px solid;
+}`,
+      choix: ["200 px", "160 px", "150 px", "140 px"], bonne: 2,
+      explication: "Avec `border-box`, width inclut padding et bordure : 200 − 40 − 10 = 150 px pour le contenu." },
+
+    { q: "Quelle couleur aura le texte « Bonjour » ?",
+      code: `
+#main p  { color: green; }
+p.intro  { color: red; }`,
+      html: `
+<div id="main">
+  <p class="intro">Bonjour</p>
+</div>`,
+      choix: ["Vert", "Rouge", "Noir", "Ça dépend de l'ordre des règles"], bonne: 0,
+      explication: "`#main p` = (1, 0, 1) ; `p.intro` = (0, 1, 1). Un ID l'emporte sur n'importe quel nombre de classes : vert, quel que soit l'ordre." },
+
+    { q: "Sans autre propriété, comment se placent les enfants d'un conteneur `display: flex` ?",
+      choix: ["En colonne, les uns sous les autres", "En ligne, avec retour à la ligne automatique", "En ligne, sans retour à la ligne", "En grille de 2 colonnes"], bonne: 2,
+      explication: "Valeurs initiales : `flex-direction: row` et `flex-wrap: nowrap`. Les éléments restent sur une ligne et rétrécissent (`flex-shrink: 1`) si la place manque." },
+
+    { q: "Où se place l'unique enfant (sans largeur définie) ?",
+      code: `
+.conteneur {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 300px;
+}`,
+      choix: ["Centré horizontalement, collé en haut", "Centré verticalement, sur toute la largeur", "Centré dans les deux directions", "En haut à gauche : rien ne change"], bonne: 1,
+      explication: "En colonne, l'axe principal est vertical : `justify-content` centre verticalement. Sur l'axe secondaire, `align-items` vaut `stretch` par défaut : l'enfant s'étire sur toute la largeur." },
+
+    { q: "La fenêtre fait exactement 768 px de large. Le menu est-il visible ?",
+      code: `
+.menu { display: none; }
+
+@media (min-width: 768px) {
+  .menu { display: flex; }
+}`,
+      choix: ["Oui, en flex", "Non, il faut au moins 769 px", "Non, une media query ne peut pas surcharger une règle", "Seulement en mode paysage"], bonne: 0,
+      explication: "`min-width` est inclusif : `(min-width: 768px)` est vraie à 768 px. Même spécificité, règle placée après : elle l'emporte." },
+
+    { q: "Parmi ces propriétés, laquelle n'est PAS héritée par défaut ?",
+      choix: ["`color`", "`font-family`", "`border`", "`line-height`"], bonne: 2,
+      explication: "Les propriétés de texte (color, font-*, line-height…) sont héritées. Les propriétés de boîte (border, margin, padding, background…) ne le sont pas." },
+
+    { q: "Quelle taille de police aura `.enfant` (placé dans `.parent`) ?",
+      code: `
+html    { font-size: 16px; }
+.parent { font-size: 20px; }
+.enfant { font-size: 2rem; }`,
+      choix: ["40 px", "32 px", "20 px", "36 px"], bonne: 1,
+      explication: "`rem` = relatif à la racine (html) : 2 × 16 = 32 px. Le parent n'intervient pas (ce serait le cas avec `em`)." },
+
+    { q: "Quel padding aura `.enfant` (placé dans `.parent`) ?",
+      code: `
+.parent { font-size: 20px; }
+.enfant {
+  font-size: 1.5em;
+  padding: 1em;
+}`,
+      choix: ["20 px", "30 px", "45 px", "16 px"], bonne: 1,
+      explication: "Pour font-size, `em` se rapporte au parent : 1,5 × 20 = 30 px. Pour les autres propriétés, `em` se rapporte à la taille de police de l'élément lui-même : 1em = 30 px." },
+
+    { q: "Quelle largeur aura le fond doré du `<span>` ?",
+      code: `
+span {
+  width: 200px;
+  background: gold;
+}`,
+      choix: ["200 px", "100 % du parent", "La largeur de son texte", "0 : le span disparaît"], bonne: 2,
+      explication: "Un span est `inline` : width et height ne s'appliquent pas aux éléments inline non remplacés. Il faudrait `display: inline-block` (ou block)." },
+  ]
+},
+{
+  id: 'revision-j1-matin', titre: 'Révision — J1 matin', moment: 'J1 · fin de matinée',
+  description: 'Cascade, @layer, spécificité, mots-clés d\'héritage, :is(), :where(), :has(), nesting.',
+  questions: [
+    { q: "Quelle est la spécificité de ce sélecteur ?",
+      code: `#nav .item a:hover { … }`,
+      choix: ["(1, 2, 1)", "(1, 1, 2)", "(0, 2, 1)", "(1, 3, 0)"], bonne: 0,
+      explication: "1 ID (`#nav`), 2 classes/pseudo-classes (`.item`, `:hover`), 1 type (`a`)." },
+
+    { q: "Quelle est la spécificité de ce sélecteur ?",
+      code: `:is(#logo, .marque) img { … }`,
+      choix: ["(0, 1, 1)", "(1, 0, 1)", "(1, 1, 1)", "(0, 0, 1)"], bonne: 1,
+      explication: "`:is()` prend la spécificité de son argument le PLUS spécifique (`#logo` = 1, 0, 0), même si c'est `.marque` qui correspond ! + `img` (0, 0, 1)." },
+
+    { q: "Et celle-ci ?",
+      code: `:where(#logo, .marque) img { … }`,
+      choix: ["(0, 0, 1)", "(1, 0, 1)", "(0, 1, 1)", "(0, 0, 0)"], bonne: 0,
+      explication: "`:where()` a toujours une spécificité nulle : seul `img` compte. Idéal pour des styles de base faciles à surcharger." },
+
+    { q: "Quelle couleur aura le texte du bouton ?",
+      code: `
+@layer base, composants;
+
+@layer composants {
+  .btn { color: blue; }
+}
+@layer base {
+  #ok.btn { color: red; }
+}`,
+      html: `<button id="ok" class="btn">OK</button>`,
+      choix: ["Rouge : l'ID gagne", "Bleu : composants est la couche prioritaire", "Rouge : base est écrite en dernier", "Noir : conflit, les deux sont ignorées"], bonne: 1,
+      explication: "Entre couches, l'ordre des couches (`@layer base, composants;`) prime sur la spécificité. composants, déclarée en dernier, est prioritaire. L'ordre d'écriture des blocs ne compte pas." },
+
+    { q: "Quelle couleur aura le lien ?",
+      code: `
+@layer composants {
+  #menu a { color: red; }
+}
+
+a { color: green; } /* hors couche */`,
+      html: `<nav id="menu"><a href="#">Accueil</a></nav>`,
+      choix: ["Rouge", "Vert", "Bleu (couleur par défaut des liens)", "Ça dépend de l'ordre"], bonne: 1,
+      explication: "Les styles hors couche l'emportent sur toutes les couches (déclarations normales), quelle que soit la spécificité." },
+
+    { q: "Quelle couleur aura `.enfant` (placé dans `.parent`) ?",
+      code: `
+.parent { color: crimson; }
+.enfant { color: unset; }`,
+      choix: ["Noir (valeur initiale)", "Crimson", "Transparent", "Celle de la feuille du navigateur"], bonne: 1,
+      explication: "`unset` = `inherit` pour une propriété héritée, `initial` sinon. color est héritée → crimson." },
+
+    { q: "Comment s'affiche alors un `<div>` ?",
+      code: `div { display: initial; }`,
+      choix: ["`block`", "`inline`", "`none`", "`contents`"], bonne: 1,
+      explication: "La valeur initiale de display (définie par la spécification) est `inline`. `block` vient de la feuille du navigateur : pour y revenir, on utilise `revert`." },
+
+    { q: "Quelles cartes reçoivent la bordure dorée ?",
+      code: `
+.carte:has(img) {
+  border: 3px solid gold;
+}`,
+      html: `
+<article class="carte">  <!-- A -->
+  <img src="a.jpg" alt="">
+</article>
+<article class="carte">  <!-- B -->
+  <figure><img src="b.jpg" alt=""></figure>
+</article>`,
+      choix: ["A seulement", "B seulement", "A et B", "Aucune : :has() exige le combinateur >"], bonne: 2,
+      explication: "`:has(img)` cherche un descendant à n'importe quelle profondeur. Pour un enfant direct uniquement : `:has(> img)`." },
+
+    { q: "À quel sélecteur équivaut le bloc `.titre` imbriqué ?",
+      code: `
+.carte {
+  color: black;
+  &:hover { color: red; }
+  .titre  { color: blue; }
+}`,
+      choix: ["`.carte.titre`", "`.carte .titre`", "`.carte > .titre`", "`.titre` (sans lien avec .carte)"], bonne: 1,
+      explication: "Sans `&`, une règle imbriquée cible un descendant (comme `& .titre`). `&:hover` colle la pseudo-classe : `.carte:hover`." },
+
+    { q: "Quelle couleur aura « Salut » ?",
+      code: `
+p       { color: red; }
+.texte  { color: green; }
+p       { color: blue; }`,
+      html: `<p class="texte">Salut</p>`,
+      choix: ["Rouge", "Vert", "Bleu", "Noir"], bonne: 1,
+      explication: "L'ordre n'intervient qu'à spécificité égale. `.texte` (0, 1, 0) bat `p` (0, 0, 1), même si p est écrit après." },
+  ]
+},
+{
+  id: 'revision-j1-apres-midi', titre: 'Révision — J1 après-midi', moment: 'J1 · 16h30',
+  description: 'Grid avancé, subgrid, Flexbox revisité, dimensionnement intrinsèque, aspect-ratio.',
+  questions: [
+    { q: "Quelle largeur fait chaque colonne ?",
+      code: `
+.grille {
+  display: grid;
+  width: 640px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}`,
+      choix: ["200 px", "213,33 px", "220 px", "193,33 px"], bonne: 0,
+      explication: "Les fr se partagent l'espace restant APRÈS les gouttières : (640 − 2 × 20) / 3 = 200 px." },
+
+    { q: "Quelle est la largeur de la 3e colonne ?",
+      code: `
+.grille {
+  display: grid;
+  width: 800px;
+  grid-template-columns: 200px 1fr 2fr;
+}`,
+      choix: ["400 px", "533 px", "300 px", "200 px"], bonne: 0,
+      explication: "Espace restant : 800 − 200 = 600 px, réparti en 3 parts (1fr + 2fr) : 1fr = 200 px, 2fr = 400 px." },
+
+    { q: "La grille ne contient que 2 éléments. Quelle largeur a chacun ?",
+      code: `
+.grille {
+  display: grid;
+  width: 1000px;
+  grid-template-columns:
+    repeat(auto-fit, minmax(200px, 1fr));
+}`,
+      choix: ["200 px", "500 px", "250 px", "1000 px"], bonne: 1,
+      explication: "5 pistes de 200 px tiennent, mais `auto-fit` écrase les pistes vides : les 2 pistes restantes se partagent tout (1fr) → 500 px. Avec `auto-fill`, les pistes vides restent : 200 px chacun." },
+
+    { q: "Laquelle de ces valeurs de `grid-template-areas` est INVALIDE ?",
+      choix: ['`"a a" "b c"`', '`"a b" "a b"`', '`"a a" "a b"`', '`". a" ". b"`'], bonne: 2,
+      explication: "Chaque zone nommée doit former un rectangle. Le « a » en L est invalide : toute la déclaration est ignorée. Le point désigne une cellule vide." },
+
+    { q: "Combien de colonnes occupe `.bandeau` ?",
+      code: `
+.grille {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.bandeau { grid-column: 2 / -1; }`,
+      choix: ["2", "3", "4", "1"], bonne: 1,
+      explication: "4 colonnes = 5 lignes. −1 désigne la dernière ligne explicite (la 5e). De la ligne 2 à la ligne 5 : 3 colonnes." },
+
+    { q: "Titre, texte et bouton de cartes voisines doivent s'aligner sur les rangées de la grille parente. Que met-on sur `.carte` ?",
+      choix: ["`display: subgrid;`", "`display: grid; grid-row: span 3; grid-template-rows: subgrid;`", "`grid-template-rows: inherit;`", "`align-items: subgrid;`"], bonne: 1,
+      explication: "`subgrid` est une valeur de grid-template-rows/columns, pas de display. La carte doit être une grille ET couvrir les pistes du parent qu'elle réutilise." },
+
+    { q: "`flex: 1` est équivalent à…",
+      choix: ["`flex: 1 0 auto`", "`flex: 1 1 0%`", "`flex: 1 1 auto`", "`flex: 0 1 auto`"], bonne: 1,
+      explication: "Un nombre seul fixe flex-grow ; flex-shrink vaut 1 et flex-basis 0 (affiché 0%). Les éléments se partagent l'espace sans tenir compte de leur contenu. La valeur initiale est `0 1 auto`." },
+
+    { q: "Quelle largeur aura `.c` (éléments vides, sans gap) ?",
+      code: `
+.rangee { display: flex; width: 600px; }
+.a, .b  { flex: 1 1 100px; }
+.c      { flex: 2 1 100px; }`,
+      choix: ["200 px", "250 px", "300 px", "175 px"], bonne: 1,
+      explication: "Espace libre : 600 − 3 × 100 = 300 px, réparti 1 : 1 : 2 → 75, 75, 150. .c = 100 + 150 = 250 px." },
+
+    { q: "Quelle largeur prend la bulle ?",
+      code: `
+.bulle {
+  width: min-content;
+  border: 2px solid;
+}`,
+      html: `<p class="bulle">Bonjour le monde</p>`,
+      choix: ["Celle de la phrase sur une seule ligne", "Celle du mot le plus long (« Bonjour »)", "100 % du parent", "0 : le texte déborde"], bonne: 1,
+      explication: "`min-content` = plus petite largeur sans débordement : le texte passe à la ligne à chaque occasion. `max-content` = toute la phrase sur une ligne." },
+
+    { q: "Quelle hauteur aura `.video` (vide, height: auto) ?",
+      code: `
+.video {
+  width: 300px;
+  aspect-ratio: 16 / 9;
+}`,
+      choix: ["168,75 px", "160 px", "533,33 px", "180 px"], bonne: 0,
+      explication: "hauteur = largeur × 9 / 16 = 300 × 0,5625 = 168,75 px. Fini le « padding-top: 56.25% »." },
+  ]
+},
+{
+  id: 'revision-bilan-j1', titre: 'Révision — bilan J1', moment: 'J2 · 9h00',
+  description: 'Bilan de la journée 1, à un niveau d\'exigence supérieur.',
+  questions: [
+    { q: "Quelle couleur aura « Deux » ?",
+      code: `
+ul li:nth-child(2) { color: orange; }
+li.choix           { color: purple; }`,
+      html: `
+<ul>
+  <li class="choix">Un</li>
+  <li class="choix">Deux</li>
+</ul>`,
+      choix: ["Orange", "Violet", "Noir", "Orange pour « Un » et « Deux »"], bonne: 0,
+      explication: "`ul li:nth-child(2)` = (0, 1, 2) ; `li.choix` = (0, 1, 1). Une pseudo-classe compte comme une classe ; à égalité, les 2 types l'emportent, malgré l'ordre." },
+
+    { q: "Quelle est la spécificité de ce sélecteur ?",
+      code: `a:not(#accueil) { … }`,
+      choix: ["(0, 0, 1)", "(0, 1, 1)", "(1, 0, 1)", "(1, 1, 1)"], bonne: 2,
+      explication: "`:not()` ne compte pas lui-même : il prend la spécificité de son argument le plus spécifique, ici `#accueil` (1, 0, 0). + `a`." },
+
+    { q: "Quelle couleur aura le lien ?",
+      code: `
+@layer base, theme;
+
+@layer base {
+  a { color: green; }
+}
+@layer theme {
+  a        { color: red; }
+  a.neutre { color: revert-layer; }
+}`,
+      html: `<a class="neutre" href="#">Lien</a>`,
+      choix: ["Rouge", "Vert", "Bleu (couleur du navigateur)", "Noir (valeur initiale)"], bonne: 1,
+      explication: "`revert-layer` annule la couche courante (theme) et reprend la valeur des couches précédentes : base → vert. `revert` reviendrait à la feuille du navigateur." },
+
+    { q: "À quel sélecteur équivaut la règle imbriquée ?",
+      code: `
+.btn {
+  background: white;
+
+  .sombre & {
+    background: black;
+  }
+}`,
+      choix: ["`.btn .sombre`", "`.sombre .btn`", "`.btn.sombre`", "`.sombre > .btn`"], bonne: 1,
+      explication: "`&` représente le sélecteur parent là où on le place : `.sombre &` → `.sombre .btn` (un .btn dans un ancêtre .sombre)." },
+
+    { q: "Que sélectionne `h2:has(+ p)` ?",
+      choix: ["Les p qui suivent directement un h2", "Les h2 immédiatement suivis d'un p", "Les h2 qui contiennent un p", "Tous les h2 et p frères"], bonne: 1,
+      explication: "`:has()` accepte un sélecteur relatif : `+ p` = frère immédiatement suivant. On style le h2 selon ce qui le suit — impossible avant :has()." },
+
+    { q: "La grille contient 7 éléments. Quelle hauteur ont les rangées 2 et 3 ?",
+      code: `
+.grille {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 100px;
+}`,
+      choix: ["100 px", "auto : la hauteur du contenu", "0 : les éléments débordent", "La grille ignore les éléments 4 à 7"], bonne: 1,
+      explication: "Seule la 1re rangée est explicite. Les suivantes sont implicites, dimensionnées par `grid-auto-rows` (auto par défaut). Pour les fixer : `grid-auto-rows: 100px`." },
+
+    { q: "Que fait `grid-column: full` ?",
+      code: `
+.page {
+  display: grid;
+  grid-template-columns:
+    [full-start] 1fr
+    [content-start] min(60ch, 100%) [content-end]
+    1fr [full-end];
+}
+.hero { grid-column: full; }`,
+      choix: ["Erreur : aucune ligne ne s'appelle « full »", "Occupe de full-start à full-end (pleine largeur)", "Occupe uniquement la 1re colonne", "Équivaut à grid-column: 1 / 2"], bonne: 1,
+      explication: "Des lignes nommées `xxx-start` / `xxx-end` créent une zone implicite « xxx » : `grid-column: full` va de full-start à full-end. Classique pour une mise en page « pleine largeur / contenu »." },
+
+    { q: "Combien d'éléments tiennent sur la première ligne ?",
+      code: `
+.rangee {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 300px;
+}
+.item { flex: 0 0 100px; }`,
+      choix: ["3", "2", "1", "4"], bonne: 1,
+      explication: "3 × 100 + 2 × 10 (gap) = 320 px > 300 px : le 3e passe à la ligne. Le gap compte dans le calcul du retour à la ligne." },
+
+    { q: "Quelle couleur aura le paragraphe ?",
+      code: `
+@layer base, theme;
+
+@layer base {
+  p { color: red !important; }
+}
+@layer theme {
+  p { color: blue !important; }
+}`,
+      choix: ["Rouge", "Bleu", "Noir", "Violet (mélange)"], bonne: 0,
+      explication: "Pour les déclarations `!important`, l'ordre des couches s'INVERSE : la première couche déclarée (base) gagne. Cela permet à une couche basse de protéger certaines règles." },
+
+    { q: "Le badge contient « Nouveau ». Quelle largeur prend-il ?",
+      code: `
+.badge {
+  display: block;
+  width: fit-content;
+  padding: 0.5em 1em;
+}`,
+      choix: ["Toute la largeur du parent", "Celle de son texte + padding", "Toujours celle de son mot le plus long", "0"], bonne: 1,
+      explication: "`fit-content` = min(max-content, max(min-content, espace disponible)) : le bloc se rétracte sur son contenu sans dépasser l'espace. Avec `margin-inline: auto`, on le centre." },
+  ]
+},
+{
+  id: 'revision-j2', titre: 'Révision — J2', moment: 'J2 · fin de journée',
+  description: 'Custom properties, @property, oklch, color-mix, light-dark, clamp, container queries, unités, propriétés logiques, accessibilité.',
+  questions: [
+    { q: "Quelle couleur aura le texte ?",
+      code: `
+:root    { --c: blue; }
+.carte   { --c: red; }
+.carte p { color: var(--c); }`,
+      html: `<div class="carte"><p>Texte</p></div>`,
+      choix: ["Bleu", "Rouge", "Noir", "Invalide"], bonne: 1,
+      explication: "Les custom properties sont héritées : la valeur la plus proche (sur .carte) gagne. On peut ainsi re-thémer un composant localement." },
+
+    { q: "Pourquoi déclarer ceci avant d'animer un dégradé conique avec `--angle` ?",
+      code: `
+@property --angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}`,
+      choix: ["Pour que le navigateur sache interpoler --angle (animation fluide)", "Pour rendre --angle accessible en JavaScript", "Parce que var() est interdit dans conic-gradient()", "Pour accélérer le sélecteur"], bonne: 0,
+      explication: "Non typée, une custom property est une simple suite de jetons : elle saute d'une valeur à l'autre. Typée en `<angle>`, elle s'interpole comme une vraie propriété." },
+
+    { q: "Dans `oklch(70% 0.15 250)`, que représente 250 ?",
+      choix: ["La luminosité", "La chroma (intensité)", "La teinte, en degrés", "L'opacité"], bonne: 2,
+      explication: "oklch(L C H) : L = luminosité perçue, C = chroma, H = teinte (angle 0–360 ; 250 ≈ bleu). À L égal, la clarté perçue est proche : contrastes plus prévisibles." },
+
+    { q: "Quelle proportion de bleu dans le mélange ?",
+      code: `color: color-mix(in oklch, red 30%, blue);`,
+      choix: ["30 %", "50 %", "70 %", "100 %"], bonne: 2,
+      explication: "Si un seul pourcentage est donné, l'autre couleur reçoit le complément : 100 − 30 = 70 % de bleu." },
+
+    { q: "Le système de l'utilisateur est en mode sombre. Quel fond ?",
+      code: `
+/* aucune déclaration color-scheme */
+body {
+  background: light-dark(white, #111);
+}`,
+      choix: ["`#111`", "`white`", "`transparent`", "Erreur de syntaxe"], bonne: 1,
+      explication: "`light-dark()` suit le schéma de couleurs utilisé par l'élément. Sans `color-scheme: light dark` (sur :root), la page reste en schéma clair → première valeur." },
+
+    { q: "Fenêtre de 1000 px de large, 1rem = 16 px. Quelle taille de police ?",
+      code: `
+h1 {
+  font-size: clamp(1rem, 2.5vw, 2rem);
+}`,
+      choix: ["16 px", "25 px", "32 px", "40 px"], bonne: 1,
+      explication: "2,5vw = 25 px, compris entre 16 px (min) et 32 px (max) → 25 px. À 400 px de large on aurait 16 px, à 1600 px : 32 px." },
+
+    { q: "La fenêtre fait 1200 px, mais `.zone` (qui contient `.carte`) ne fait que 350 px. Que se passe-t-il ?",
+      code: `
+.zone { container-type: inline-size; }
+
+@container (min-width: 400px) {
+  .carte { display: flex; }
+}`,
+      choix: [".carte passe en flex : la fenêtre fait plus de 400 px", ".carte ne passe pas en flex : seule la largeur de .zone compte", "Erreur : @container exige un nom", ".carte passe en flex seulement en mode portrait"], bonne: 1,
+      explication: "Une container query interroge le conteneur ancêtre le plus proche, pas la fenêtre. 350 px < 400 px : condition fausse." },
+
+    { q: "Le conteneur le plus proche (`container-type: inline-size`) mesure 600 px. Taille du titre ?",
+      code: `.titre { font-size: 5cqi; }`,
+      choix: ["5 px", "30 px", "60 px", "Dépend de la fenêtre"], bonne: 1,
+      explication: "1cqi = 1 % de la taille inline du conteneur → 5 × 6 = 30 px. Sans conteneur, les unités cq* se rabattent sur la petite fenêtre (svi…)." },
+
+    { q: "Page en `dir=\"rtl\"` (arabe, hébreu). De quel côté est la marge ?",
+      code: `.note { margin-inline-start: 2rem; }`,
+      choix: ["À gauche", "À droite", "En haut", "Des deux côtés"], bonne: 1,
+      explication: "inline-start = début de ligne. En RTL, la ligne commence à droite. Les propriétés logiques s'adaptent seules à la direction d'écriture." },
+
+    { q: "Quel est l'intérêt de `:focus-visible` par rapport à `:focus` ?",
+      choix: ["Aucun, ce sont des synonymes", "N'afficher l'indicateur que quand il est utile (clavier), pas au clic souris sur un bouton", "Masquer le focus aux lecteurs d'écran", "Il ne fonctionne que sur les liens"], bonne: 1,
+      explication: "Le navigateur applique une heuristique : focus visible au clavier (et toujours dans les champs texte). On peut alors styler un anneau bien visible sans gêner la souris." },
+
+    { q: "Ratio de contraste minimal (WCAG, niveau AA) pour un texte de taille normale ?",
+      choix: ["3:1", "4.5:1", "7:1", "2:1"], bonne: 1,
+      explication: "AA : 4.5:1 pour le texte courant ; 3:1 pour le grand texte (≥ 24 px, ou ≥ 18,66 px en gras) et les composants d'interface. 7:1 = niveau AAA." },
+  ]
+},
+{
+  id: 'revision-bilan-j2', titre: 'Révision — bilan J2', moment: 'J3 · 9h00',
+  description: 'Bilan de la journée 2, à un niveau d\'exigence supérieur.',
+  questions: [
+    { q: "Quelle couleur aura le paragraphe (dans `.parent`) ?",
+      code: `
+:root   { --taille: 20px; }
+.parent { color: green; }
+
+p { color: red; }
+p { color: var(--taille); }`,
+      html: `<div class="parent"><p>Texte</p></div>`,
+      choix: ["Rouge : la déclaration invalide est ignorée", "Vert : hérité du parent", "Transparent : 20px n'est pas une couleur", "Noir : valeur initiale"], bonne: 1,
+      explication: "Avec var(), la validité n'est vérifiée qu'au calcul (« invalide au moment du calcul »). La déclaration a déjà gagné la cascade : pas de retour à la règle rouge. color devient `unset` → hérité → vert." },
+
+    { q: "`--primaire` n'est défini nulle part. Quelle couleur ?",
+      code: `
+:root { --secondaire: purple; }
+.btn  {
+  color: var(--primaire, var(--secondaire, green));
+}`,
+      choix: ["green", "purple", "Noir", "Invalide : on ne peut pas imbriquer var()"], bonne: 1,
+      explication: "La valeur de repli peut elle-même contenir un var() : --primaire absent → on évalue var(--secondaire, green) → purple." },
+
+    { q: "`.carte` fait 600 px. Aucun ancêtre n'est un conteneur. Passe-t-elle en grid ?",
+      code: `
+.carte { container-type: inline-size; }
+
+@container (min-width: 400px) {
+  .carte { display: grid; }
+}`,
+      choix: ["Oui, elle fait plus de 400 px", "Non : un élément ne peut pas interroger sa propre taille", "Oui, mais après un rechargement", "Non : il manque un nom de conteneur"], bonne: 1,
+      explication: "Une container query interroge un ANCÊTRE. Pour adapter la carte elle-même : container-type sur un wrapper parent, ou cibler les enfants de .carte." },
+
+    { q: "Sur mobile, quelle hauteur garantit qu'un bloc tient entièrement à l'écran même quand les barres du navigateur sont affichées ?",
+      choix: ["`100vh`", "`100svh`", "`100lvh`", "`100vw`"], bonne: 1,
+      explication: "svh = petite fenêtre (barres affichées), lvh = grande (barres masquées), dvh = dynamique (suit les barres). 100vh correspond en général à lvh : ça déborde." },
+
+    { q: "Parent de 400 px ; 60ch ≈ 600 px ici. Largeur de `.contenu` ?",
+      code: `.contenu { width: min(100%, 60ch); }`,
+      choix: ["600 px", "400 px", "60 px", "1000 px"], bonne: 1,
+      explication: "min() garde la plus petite valeur : 100 % = 400 px < 600 px. Une seule ligne remplace width + max-width." },
+
+    { q: "Que déclare `container: sidebar / inline-size` ?",
+      code: `
+.aside { container: sidebar / inline-size; }
+
+@container sidebar (width > 30rem) {
+  .widget { flex-direction: row; }
+}`,
+      choix: ["Une largeur de 30rem", "Un conteneur nommé « sidebar » qui expose sa taille inline", "Une grille nommée sidebar", "Un conteneur qui expose largeur ET hauteur"], bonne: 1,
+      explication: "Raccourci de `container-name / container-type`. Le nom permet de viser un conteneur précis plutôt que le plus proche. `(width > 30rem)` : syntaxe d'intervalle moderne." },
+
+    { q: "Lequel est un token SÉMANTIQUE (et non primitif) ?",
+      choix: ["`--bleu-500: oklch(55% 0.2 255)`", "`--espace-4: 1rem`", "`--couleur-action: var(--bleu-500)`", "`--gris-100: #f4f4f5`"], bonne: 2,
+      explication: "Un primitif décrit une valeur (bleu-500). Un sémantique décrit un rôle (action) et pointe vers un primitif : on change de thème en ne touchant qu'aux sémantiques." },
+
+    { q: "Que se passe-t-il quand on coche la case `#theme-sombre` ?",
+      code: `
+:root { color-scheme: light; }
+
+:root:has(#theme-sombre:checked) {
+  color-scheme: dark;
+}
+body { background: light-dark(white, #111); }`,
+      choix: ["Rien : :root ne peut pas dépendre d'un descendant", "Toute la page passe en schéma sombre, sans JavaScript", "Seule la case change de couleur", "Il faut recharger la page"], bonne: 1,
+      explication: "`:has()` permet à :root de réagir à l'état d'un élément de la page : color-scheme passe à dark et tous les light-dark() basculent." },
+
+    { q: "Écriture horizontale (français). Où vont 1rem et 2rem ?",
+      code: `.bloc { padding-block: 1rem 2rem; }`,
+      choix: ["Gauche 1rem, droite 2rem", "Haut 1rem, bas 2rem", "Haut et bas 1rem, côtés 2rem", "Haut 2rem, bas 1rem"], bonne: 1,
+      explication: "L'axe block est vertical en écriture horizontale : block-start (haut) puis block-end (bas)." },
+
+    { q: "WCAG 2.2, niveau AA (critère 2.5.8) : taille minimale d'une cible cliquable ?",
+      choix: ["16 × 16 px", "24 × 24 px", "44 × 44 px", "48 × 48 px"], bonne: 1,
+      explication: "AA : 24 × 24 px CSS minimum (ou un espacement suffisant autour). 44 × 44 px correspond au niveau AAA (2.5.5) et reste une très bonne pratique." },
+  ]
+},
+{
+  id: 'revision-j3', titre: 'Révision — J3', moment: 'J3 · 11h00',
+  description: 'Transitions, keyframes, transformations, @starting-style, popover, View Transitions, scroll-driven, performance, reduced-motion.',
+  questions: [
+    { q: "Quelle propriété ne peut PAS être transitionnée de façon fluide (par défaut) ?",
+      choix: ["`opacity`", "`transform`", "`display`", "`background-color`"], bonne: 2,
+      explication: "display est discrète : sans `transition-behavior: allow-discrete`, elle bascule immédiatement. opacity, transform, couleurs : interpolées." },
+
+    { q: "Que représente `0.1s` ?",
+      code: `.btn { transition: opacity 0.3s ease-in 0.1s; }`,
+      choix: ["La durée", "Le délai avant le démarrage", "La durée du retour", "Rien : valeur ignorée"], bonne: 1,
+      explication: "Dans transition (comme dans animation), la 1re durée est la durée, la 2e est le délai." },
+
+    { q: "De combien la boîte est-elle décalée horizontalement ?",
+      code: `
+.boite {
+  translate: 10px 0;
+  transform: translateX(50px);
+}`,
+      choix: ["10 px", "50 px", "60 px", "40 px"], bonne: 2,
+      explication: "translate, rotate et scale (propriétés individuelles) s'appliquent EN PLUS de transform (ordre : translate → rotate → scale → transform). On peut ainsi animer l'une sans écraser l'autre." },
+
+    { q: "Dans quelle direction la flèche est-elle déplacée à l'écran ?",
+      code: `
+.fleche {
+  transform: rotate(90deg) translateX(100px);
+}`,
+      choix: ["Vers la droite", "Vers le bas", "Vers le haut", "Vers la gauche"], bonne: 1,
+      explication: "Lues de gauche à droite, les fonctions agissent dans un repère déjà transformé : rotate(90deg) tourne le repère (sens horaire), l'axe X pointe alors vers le bas → translateX(100px) descend. L'ordre compte !" },
+
+    { q: "Combien d'itérations, et dans quel sens ?",
+      code: `
+.pastille {
+  animation: pulse 1s ease-in-out 3 alternate;
+}`,
+      choix: ["3 : aller, retour, aller", "3 allers", "6 : 3 allers + 3 retours", "Infini, en alternance"], bonne: 0,
+      explication: "3 = animation-iteration-count ; alternate inverse une itération sur deux. Chaque itération dure 1 s." },
+
+    { q: "Après la fin d'une animation, l'élément garde l'état de la dernière image clé si…",
+      choix: ["`animation-fill-mode: forwards`", "`animation-direction: reverse`", "`animation-play-state: paused`", "`animation-iteration-count: 1`"], bonne: 0,
+      explication: "Sans fill-mode, l'élément revient à ses styles normaux à la fin. `forwards` conserve la dernière image, `backwards` applique la première pendant le délai, `both` fait les deux." },
+
+    { q: "À quoi sert `@starting-style` ici ?",
+      code: `
+.toast {
+  opacity: 1;
+  transition: opacity 0.4s;
+
+  @starting-style {
+    opacity: 0;
+  }
+}`,
+      choix: ["Définir l'état de départ quand l'élément apparaît (insertion ou sortie de display: none)", "Définir l'état final de l'animation", "Précharger les styles avant le JavaScript", "Remplacer @keyframes"], bonne: 0,
+      explication: "Un élément tout juste rendu n'a pas d'état « d'avant » : pas de transition. @starting-style fournit ces valeurs de départ → fondu d'apparition sans JS." },
+
+    { q: "Combien de lignes de JavaScript faut-il pour ouvrir/fermer ce menu ?",
+      html: `
+<button popovertarget="menu">Menu</button>
+<div id="menu" popover>…</div>`,
+      choix: ["0", "1 (un addEventListener)", "Une dizaine", "Impossible sans bibliothèque"], bonne: 0,
+      explication: "L'API Popover est déclarative : le bouton ouvre/ferme, Échap ou un clic extérieur ferment (popover=auto), et l'élément s'affiche dans la top layer." },
+
+    { q: "Pour une animation fluide, quelles propriétés animer en priorité ?",
+      choix: ["`width` et `height`", "`top` et `left`", "`transform` et `opacity`", "`margin` et `padding`"], bonne: 2,
+      explication: "transform et opacity peuvent être gérées par le compositeur, sans recalcul de mise en page ni repeinture. width, top, margin déclenchent un layout à chaque image." },
+
+    { q: "Qu'est-ce qui fait avancer l'animation ?",
+      code: `
+.carte {
+  animation: apparition linear both;
+  animation-timeline: view();
+}`,
+      choix: ["Le temps, comme d'habitude", "La progression de l'élément dans la zone visible quand on défile", "La position de la souris", "Le chargement de la page"], bonne: 1,
+      explication: "`view()` crée une timeline de vue : 0 % quand la carte entre dans la zone de défilement, 100 % quand elle en sort. À placer dans `@supports (animation-timeline: view())`, le support n'étant pas universel." },
+
+    { q: "Quelle media query cible les personnes qui demandent moins d'animations ?",
+      choix: ["`@media (prefers-reduced-motion: reduce)`", "`@media (motion: none)`", "`@media (prefers-contrast: more)`", "`@media (animation: off)`"], bonne: 0,
+      explication: "Réduire ≠ tout supprimer : on garde les fondus courts, on supprime parallaxe, zooms et grands déplacements." },
+  ]
+},
+{
+  id: 'synthese', titre: 'Quiz de synthèse', moment: 'J3 · 16h00',
+  description: 'Questions de synthèse portant sur les trois journées du module.',
+  questions: [
+    { q: "Quelle est la spécificité de ce sélecteur ?",
+      code: `:is(.menu, #nav) :where(#top) .lien { … }`,
+      choix: ["(1, 1, 0)", "(2, 1, 0)", "(0, 2, 0)", "(1, 2, 0)"], bonne: 0,
+      explication: "`:is()` → son argument le plus spécifique (#nav : 1, 0, 0) ; `:where()` → 0 ; `.lien` → (0, 1, 0). Total (1, 1, 0)." },
+
+    { q: "Quelle couleur aura le paragraphe ?",
+      code: `
+@layer base {
+  p { color: red !important; }
+}
+
+p { color: blue; } /* hors couche */`,
+      choix: ["Rouge", "Bleu", "Noir", "Violet"], bonne: 0,
+      explication: "Une déclaration `!important`, même en couche, bat toute déclaration normale. Et entre déclarations !important, les couches battent le hors-couche (ordre inversé)." },
+
+    { q: "Quelle règle fonctionne au survol d'un lien ? (`:survol` n'existe pas)",
+      code: `
+/* Règle 1 */
+a:hover, a:survol { color: red; }
+
+/* Règle 2 */
+:is(a:hover, a:survol) { color: red; }`,
+      choix: ["Les deux", "Aucune", "Seulement la règle 1", "Seulement la règle 2"], bonne: 3,
+      explication: "Dans une liste de sélecteurs classique, un seul sélecteur invalide annule toute la règle. `:is()` et `:where()` prennent une liste « tolérante » : l'argument invalide est simplement ignoré." },
+
+    { q: "En CSS natif, cette règle cible-t-elle `.carte--grand` ?",
+      code: `
+.carte {
+  padding: 1rem;
+  &--grand { padding: 2rem; }
+}`,
+      choix: ["Oui, comme en Sass", "Non : le nesting natif ne concatène pas les noms", "Oui, mais seulement dans Chrome", "Non : & est interdit en début de sélecteur"], bonne: 1,
+      explication: "`&` représente un sélecteur, pas du texte. `&--grand` ne fabrique pas `.carte--grand` (BEM) : écrivez cette règle séparément." },
+
+    { q: "2 éléments seulement. Quelle largeur a chacun ?",
+      code: `
+.grille {
+  display: grid;
+  width: 1000px;
+  gap: 20px;
+  grid-template-columns:
+    repeat(auto-fill, minmax(200px, 1fr));
+}`,
+      choix: ["200 px", "235 px", "490 px", "500 px"], bonne: 1,
+      explication: "4 × 200 + 3 × 20 = 860 ≤ 1000, mais 5 pistes = 1080 > 1000 → 4 pistes. auto-fill garde les pistes vides : (1000 − 60) / 4 = 235 px. Avec auto-fit : (1000 − 20) / 2 = 490 px." },
+
+    { q: "Éléments vides. Quelle largeur aura `.a` ?",
+      code: `
+.rangee { display: flex; width: 300px; }
+.a { flex: 0 1 300px; }
+.b { flex: 0 1 100px; }`,
+      choix: ["200 px", "225 px", "250 px", "150 px"], bonne: 1,
+      explication: "Dépassement : 400 − 300 = 100 px. Le rétrécissement est pondéré par flex-shrink × flex-basis : .a (300/400) perd 75 px, .b perd 25 px → .a = 225 px, .b = 75 px." },
+
+    { q: "Quel padding aura `.enfant` (dans `.parent`) ?",
+      code: `
+@property --gouttiere {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+.parent { --gouttiere: 24px; }
+.enfant { padding: var(--gouttiere); }`,
+      choix: ["24 px", "0 px", "16 px (1em)", "Erreur : syntax doit valoir '*'"], bonne: 1,
+      explication: "`inherits: false` : l'enfant ne reçoit pas 24px, il prend initial-value (0px). Sans @property, les custom properties héritent toujours." },
+
+    { q: "Fenêtre de 800 px, 1rem = 16 px. Taille de police ?",
+      code: `
+p {
+  font-size: clamp(1rem, 0.5rem + 2vw, 2rem);
+}`,
+      choix: ["16 px", "24 px", "32 px", "20 px"], bonne: 1,
+      explication: "0,5rem + 2vw = 8 + 16 = 24 px, entre 16 et 32 px → 24 px. Le terme en rem garde la taille sensible au zoom (accessibilité)." },
+
+    { q: "Quel résultat donne `color-mix(in srgb, blue, yellow)` ?",
+      choix: ["Un vert vif", "Un gris neutre", "Un violet", "Du blanc"], bonne: 1,
+      explication: "En sRGB : (0, 0, 255) et (255, 255, 0) → (127.5, 127.5, 127.5) : gris ! En `oklch`, la teinte est interpolée sur le cercle : on obtient une couleur saturée (vert-bleu)." },
+
+    { q: "Que devient la largeur de `.etiquette` ?",
+      code: `
+.etiquette {
+  container-type: inline-size;
+  width: fit-content;
+}`,
+      choix: ["Celle de son texte, comme d'habitude", "Elle s'effondre (≈ 0) : sa largeur ne peut plus dépendre de son contenu", "100 % du parent", "400 px par défaut"], bonne: 1,
+      explication: "`container-type: inline-size` applique un confinement de taille sur l'axe inline : le contenu n'influence plus la largeur. Un conteneur doit tirer sa largeur de son contexte (bloc, grille, flex…)." },
+
+    { q: "Quel est le problème de cette règle ?",
+      code: `button:focus { outline: none; }`,
+      choix: ["Aucun : c'est plus joli", "Les personnes au clavier ne voient plus où elles sont (WCAG 2.4.7)", "Le bouton n'est plus cliquable", "Le lecteur d'écran ne lit plus le bouton"], bonne: 1,
+      explication: "Ne jamais supprimer l'indicateur sans le remplacer. Préférez `:focus-visible { outline: 3px solid …; outline-offset: 2px; }`." },
+
+    { q: "Pour animer en fondu l'OUVERTURE et la FERMETURE d'un popover (display: none ↔ block), il faut…",
+      choix: ["Seulement `transition: opacity 0.3s`", "`@starting-style` pour l'entrée + `transition-behavior: allow-discrete` sur display (et overlay)", "Un @keyframes et `animation-fill-mode: both`, dans tous les cas", "C'est impossible sans JavaScript"], bonne: 1,
+      explication: "À l'entrée, @starting-style donne l'état initial. À la sortie, allow-discrete retarde le passage à display: none (et la sortie de la top layer via overlay) jusqu'à la fin de la transition." },
+
+    { q: "Pendant une View Transition, deux éléments visibles ont la classe `.carte-active`. Que se passe-t-il ?",
+      code: `
+.carte-active {
+  view-transition-name: carte;
+}`,
+      choix: ["Les deux s'animent ensemble", "Seul le premier s'anime", "La transition est abandonnée : le DOM change sans animation", "Le navigateur renomme le second"], bonne: 2,
+      explication: "Chaque view-transition-name doit être unique. En cas de doublon, l'animation est sautée (erreur en console) mais le DOM est bien mis à jour. Un nom par élément !" },
+
+    { q: "Laquelle de ces animations force un recalcul de mise en page (layout) à chaque image ?",
+      choix: ["`transform: scale()`", "`opacity`", "`width`", "`filter: blur()`"], bonne: 2,
+      explication: "Modifier width change la géométrie : layout + paint à chaque image. transform et opacity sont composées ; filter repeint au pire, sans layout." },
+
+    { q: "Que fait ce code pour une personne qui a activé « réduire les animations » ?",
+      code: `
+@media (prefers-reduced-motion: no-preference) {
+  .hero {
+    animation: flotter 3s infinite alternate;
+  }
+}`,
+      choix: ["L'animation est jouée plus lentement", "L'animation n'est jamais appliquée", "L'animation est jouée une seule fois", "Rien : seule la valeur reduce existe"], bonne: 1,
+      explication: "Approche « motion-safe » : on n'ajoute le mouvement que si aucune préférence n'est exprimée. Plus sûr que d'annuler après coup avec `reduce`." },
+  ]
+},
+];
+/* =====================================================================
+   2. PRÉFÉRENCES LOCALES (thème, durée du minuteur)
+   ---------------------------------------------------------------------
+   Seules les préférences d'affichage sont mémorisées. Tout accès à
+   localStorage est protégé : le quiz fonctionne aussi sans.
+   ===================================================================== */
+const CLE_PREFS = 'quiz-css-avance.prefs.v1';
+
+const Prefs = {
+  lire() {
+    try { return JSON.parse(localStorage.getItem(CLE_PREFS)) ?? {}; }
+    catch { return {}; }
+  },
+  maj(modif) {
+    try { localStorage.setItem(CLE_PREFS, JSON.stringify({ ...this.lire(), ...modif })); }
+    catch { /* préférences non mémorisées : sans gravité */ }
+  },
+};
+
+/* =====================================================================
+   3. OUTILS D'AFFICHAGE
+   ===================================================================== */
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* Texte avec `code` inline → HTML échappé. */
+function enrichir(texte) {
+  return String(texte).split('`').map((morceau, i) => i % 2 ? `<code>${esc(morceau)}</code>` : esc(morceau)).join('');
+}
+
+const FORMES = [
+  '<svg class="forme" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,3 22,21 2,21"/></svg>',
+  '<svg class="forme" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.5 22.5,12 12,22.5 1.5,12"/></svg>',
+  '<svg class="forme" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg>',
+  '<svg class="forme" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="1.5"/></svg>',
+];
+const LETTRES = ['A', 'B', 'C', 'D'];
+const NOMS_FORMES = ['triangle', 'losange', 'cercle', 'carré'];
+
+/* --- Coloration syntaxique CSS minimaliste (segments { ; }) --- */
+const span = (classe, texte) => `<span class="${classe}">${esc(texte)}</span>`;
+
+function colorerValeur(v) {
+  const re = /('[^']*'|"[^"]*")|(!important)|(--[\w-]+)|(#[0-9a-f]{3,8}\b)|([a-z-]+(?=\())|(-?\d*\.?\d+(?:[a-z%]+)?)/gi;
+  let out = '', dernier = 0, m;
+  while ((m = re.exec(v))) {
+    out += esc(v.slice(dernier, m.index));
+    const [t, chaine, imp, custom, hex, fn] = m;
+    out += chaine ? span('v', t) : imp ? span('imp', t) : custom ? span('p', t) : hex ? span('v', t) : fn ? span('f', t) : span('v', t);
+    dernier = re.lastIndex;
+  }
+  return out + esc(v.slice(dernier));
+}
+
+function colorerSelecteur(s) {
+  const debut = s.match(/^\s*/)[0];
+  const corps = s.slice(debut.length);
+  if (corps.startsWith('@')) {
+    const m = corps.match(/^(@[\w-]+)([\s\S]*)$/);
+    return esc(debut) + span('at', m[1]) + colorerValeur(m[2]);
+  }
+  return esc(debut) + colorerSel(corps);
+}
+function colorerSel(s) {
+  const re = /(&)|([.#][\w-]+)|(::?[\w-]+(?:\([^)]*\))?)|(\[[^\]]*\])/g;
+  let out = '', dernier = 0, m;
+  while ((m = re.exec(s))) {
+    out += esc(s.slice(dernier, m.index)) + span('s', m[0]);
+    dernier = re.lastIndex;
+  }
+  return out + esc(s.slice(dernier));
+}
+
+function colorerDeclaration(seg) {
+  const iDeux = seg.indexOf(':');
+  if (seg.trim().startsWith('@')) return colorerSelecteur(seg);
+  if (iDeux < 0) return esc(seg);
+  const avant = seg.slice(0, iDeux);
+  const debut = avant.match(/^\s*/)[0];
+  return esc(debut) + span('p', avant.slice(debut.length)) + ':' + colorerValeur(seg.slice(iDeux + 1));
+}
+
+function colorerCSS(src) {
+  let out = '', tampon = '';
+  for (let i = 0; i < src.length; i++) {
+    if (src.startsWith('/*', i)) {
+      const fin = src.indexOf('*/', i + 2);
+      const j = fin < 0 ? src.length : fin + 2;
+      out += esc(tampon) + span('c', src.slice(i, j));
+      tampon = ''; i = j - 1; continue;
+    }
+    const c = src[i];
+    if (c === '{') { out += colorerSelecteur(tampon) + '{'; tampon = ''; }
+    else if (c === ';' || c === '}') { out += (tampon.trim() ? colorerDeclaration(tampon) : esc(tampon)) + c; tampon = ''; }
+    else tampon += c;
+  }
+  /* Reste sans terminateur : sélecteur seul ou déclaration seule. */
+  if (tampon) out += tampon.includes(':') && !tampon.includes('{') && /^\s*[\w-]+\s*:/.test(tampon) ? colorerDeclaration(tampon) : colorerSel(tampon);
+  return out;
+}
+
+function colorerHTML(src) {
+  const re = /(<!--[\s\S]*?-->)|(<\/?[\w-]+)|([\w-]+)(?==)|("[^"]*")|(\/?>)/g;
+  let out = '', dernier = 0, m;
+  while ((m = re.exec(src))) {
+    out += esc(src.slice(dernier, m.index));
+    const [t, com, balise, attr, chaine] = m;
+    out += com ? span('c', t) : balise ? span('s', t) : attr ? span('p', t) : chaine ? span('v', t) : span('s', t);
+    dernier = re.lastIndex;
+  }
+  return out + esc(src.slice(dernier));
+}
+
+/* =====================================================================
+   4. ÉTAT DE LA SÉANCE DE QUIZ
+   ===================================================================== */
+const session = {
+  banque: null,
+  index: 0,
+  questions: [],         /* par question : { revele } */
+  duree: 20,
+};
+
+const chrono = { restant: 0, enCours: false, dernier: 0, raf: 0 };
+
+/* =====================================================================
+   5. ACCUEIL
+   ===================================================================== */
+function afficherAccueil() {
+  arreterChrono();
+  montrer('accueil');
+  const liste = $('#grille-banques');
+  liste.innerHTML = BANQUES.map(b => `
+    <li class="carte-banque">
+      <span class="moment">${esc(b.moment)}</span>
+      <h2>${esc(b.titre)}</h2>
+      <p>${esc(b.description)}<br><strong>${b.questions.length} questions</strong></p>
+      <div class="boutons">
+        <button class="btn principal" type="button" data-action="lancer" data-banque="${b.id}">Projeter</button>
+        <button class="btn" type="button" data-action="imprimer" data-banque="${b.id}">Imprimer avec corrigé</button>
+      </div>
+    </li>`).join('');
+}
+
+function montrer(nom) {
+  for (const id of ['accueil', 'question', 'fin']) $(`#ecran-${id}`).hidden = id !== nom;
+}
+
+/* =====================================================================
+   6. DÉROULÉ D'UNE BANQUE
+   ===================================================================== */
+function lancer(idBanque) {
+  const banque = BANQUES.find(b => b.id === idBanque);
+  if (!banque) return;
+  session.banque = banque;
+  session.index = 0;
+  session.questions = banque.questions.map(() => ({ revele: false }));
+  session.duree = lireDuree();
+  montrer('question');
+  afficherQuestion();
+}
+
+function lireDuree() {
+  const v = Math.round(Number($('#duree').value));
+  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 180) : 20;
+}
+
+function afficherQuestion() {
+  const { banque, index } = session;
+  const q = banque.questions[index];
+  const etatQ = session.questions[index];
+
+  $('#q-banque').textContent = banque.titre;
+  $('#q-compteur').textContent = `${index + 1} / ${banque.questions.length}`;
+  $('#q-jauge').style.setProperty('--avance', (index + 1) / banque.questions.length);
+  $('#q-enonce').innerHTML = enrichir(q.q);
+
+  /* Extraits de code (CSS et/ou HTML) */
+  $('#q-contenu .extraits')?.remove();
+  if (q.code || q.html) {
+    const bloc = document.createElement('div');
+    bloc.className = 'extraits';
+    if (q.code) bloc.insertAdjacentHTML('beforeend', `<pre class="extrait" data-langage="CSS"><code>${colorerCSS(q.code.trim())}</code></pre>`);
+    if (q.html) bloc.insertAdjacentHTML('beforeend', `<pre class="extrait" data-langage="HTML"><code>${colorerHTML(q.html.trim())}</code></pre>`);
+    $('#q-enonce').after(bloc);
+  }
+
+  /* Réponses */
+  $('#q-reponses').innerHTML = q.choix.map((c, i) => `
+    <li class="reponse${i === q.bonne ? ' bonne' : ''}" data-i="${i}">
+      ${FORMES[i]}<span class="lettre" aria-label="Réponse ${LETTRES[i]} (${NOMS_FORMES[i]})">${LETTRES[i]}</span>
+      <span class="texte">${enrichir(c)}</span>
+      <span class="verdict"></span>
+    </li>`).join('');
+
+  appliquerRevelation(etatQ.revele);
+  if (etatQ.revele) { arreterChrono(); afficherChrono(0, 'fini'); }
+  else demarrerChrono();
+}
+
+function appliquerRevelation(revele) {
+  const q = session.banque.questions[session.index];
+  $('#q-contenu').classList.toggle('revele', revele);
+  const expl = $('#q-explication');
+  expl.hidden = !revele;
+  if (revele) {
+    expl.innerHTML = `<strong>Réponse ${LETTRES[q.bonne]}.</strong> ${enrichir(q.explication)}`;
+    const bonne = $(`#q-reponses .reponse[data-i="${q.bonne}"] .verdict`);
+    if (bonne) bonne.textContent = '✓ Bonne réponse';
+  }
+  const dernier = session.index === session.banque.questions.length - 1;
+  $('#btn-principal').innerHTML = revele
+    ? (dernier ? 'Terminer <kbd>Espace</kbd>' : 'Suivante <kbd>Espace</kbd>')
+    : 'Révéler <kbd>Espace</kbd>';
+}
+
+function reveler() {
+  const etatQ = session.questions[session.index];
+  if (etatQ.revele) return;
+  etatQ.revele = true;
+  arreterChrono();
+  afficherChrono(0, 'fini');
+  appliquerRevelation(true);
+}
+
+function suivante() {
+  if (session.index < session.banque.questions.length - 1) {
+    session.index++;
+    afficherQuestion();
+  } else afficherFin();
+}
+
+function precedente() {
+  if (session.index > 0) { session.index--; afficherQuestion(); }
+}
+
+function actionPrincipale() {
+  if (session.questions[session.index].revele) suivante();
+  else reveler();
+}
+
+/* =====================================================================
+   7. MINUTEUR
+   ===================================================================== */
+function demarrerChrono() {
+  arreterChrono();
+  if (session.duree <= 0) { afficherChrono(0, 'off'); return; }
+  chrono.restant = session.duree;
+  reprendreChrono();
+}
+
+function reprendreChrono() {
+  if (session.duree <= 0 || chrono.restant <= 0) return;
+  chrono.enCours = true;
+  chrono.dernier = performance.now();
+  chrono.raf = requestAnimationFrame(tic);
+}
+
+function arreterChrono() {
+  chrono.enCours = false;
+  cancelAnimationFrame(chrono.raf);
+}
+
+function basculerPause() {
+  if (session.questions[session.index]?.revele || session.duree <= 0) return;
+  if (chrono.enCours) { arreterChrono(); afficherChrono(chrono.restant, 'pause'); }
+  else reprendreChrono();
+}
+
+function tic(maintenant) {
+  if (!chrono.enCours) return;
+  chrono.restant = Math.max(0, chrono.restant - (maintenant - chrono.dernier) / 1000);
+  chrono.dernier = maintenant;
+  if (chrono.restant <= 0) {
+    arreterChrono();
+    afficherChrono(0, 'fini');
+    return;
+  }
+  afficherChrono(chrono.restant, chrono.restant <= 5 ? 'urgent' : 'normal');
+  chrono.raf = requestAnimationFrame(tic);
+}
+
+function afficherChrono(restant, etat) {
+  const el = $('#chrono');
+  el.dataset.etat = etat;
+  el.style.setProperty('--progression', session.duree > 0 ? restant / session.duree : 0);
+  $('#chrono-texte').textContent = etat === 'fini' && !session.questions[session.index]?.revele ? '0' : (etat === 'fini' ? '✓' : Math.ceil(restant));
+}
+
+/* =====================================================================
+   8. FIN DE BANQUE
+   ===================================================================== */
+function afficherFin() {
+  arreterChrono();
+  montrer('fin');
+  const b = session.banque;
+  $('#fin-resume').textContent = `${b.titre} · ${b.questions.length} questions. `
+    + 'Revenez si besoin sur les questions qui ont posé difficulté (touche ← ou « Revoir depuis le début »).';
+}
+
+/* =====================================================================
+   9. IMPRESSION D'UNE BANQUE AVEC SON CORRIGÉ
+   ===================================================================== */
+function imprimer(idBanque) {
+  const b = BANQUES.find(x => x.id === idBanque);
+  if (!b) return;
+  $('#impression').innerHTML = `
+    <p class="surtitre">Module CSS avancé · Licence 3 · Quiz de révision — corrigé</p>
+    <h1>${esc(b.titre)}</h1>
+    <p class="sous-titre">${esc(b.moment)} · ${b.questions.length} questions · ${esc(b.description)}</p>
+    ${b.questions.map((q, i) => `
+      <article>
+        <h2>Q${i + 1}. ${enrichir(q.q)}</h2>
+        ${q.code ? `<pre>${esc(q.code.trim())}</pre>` : ''}
+        ${q.html ? `<pre>${esc(q.html.trim())}</pre>` : ''}
+        <ol>${q.choix.map((c, j) => `<li class="${j === q.bonne ? 'bonne' : ''}">${enrichir(c)}</li>`).join('')}</ol>
+        <p class="expl"><strong>Réponse ${LETTRES[q.bonne]}.</strong> ${enrichir(q.explication)}</p>
+      </article>`).join('')}`;
+  window.print();
+}
+
+/* =====================================================================
+   10. ÉVÉNEMENTS
+   ===================================================================== */
+document.addEventListener('click', e => {
+  const cible = e.target.closest('[data-action], #chrono');
+  if (!cible) return;
+  if (cible.id === 'chrono') return basculerPause();
+  const { action, banque } = cible.dataset;
+  switch (action) {
+    case 'lancer': lancer(banque); break;
+    case 'imprimer': imprimer(banque); break;
+    case 'imprimer-courante': imprimer(session.banque.id); break;
+    case 'menu': afficherAccueil(); break;
+    case 'principal': actionPrincipale(); break;
+    case 'precedente': precedente(); break;
+    case 'revoir': lancer(session.banque.id); break;
+    case 'aide': $('#dlg-aide').showModal(); break;
+  }
+});
+
+/* Navigation clavier (compatible télécommande de présentation). */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target.matches('input, textarea, select')) return;
+  if ($('#dlg-aide').open) return;
+  const touche = e.key;
+
+  if (touche === '?') { e.preventDefault(); $('#dlg-aide').showModal(); return; }
+  if (touche === 'f' || touche === 'F') { basculerPleinEcran(); return; }
+
+  if ($('#ecran-question').hidden) return;
+  const etatQ = session.questions[session.index];
+
+  if (touche === ' ' || touche === 'Enter') { e.preventDefault(); actionPrincipale(); }
+  else if (touche === 'ArrowRight' || touche === 'PageDown') { e.preventDefault(); suivante(); }
+  else if (touche === 'ArrowLeft' || touche === 'PageUp') { e.preventDefault(); precedente(); }
+  else if (touche === 'p' || touche === 'P') basculerPause();
+  else if (touche === 'r' || touche === 'R') { if (!etatQ.revele) demarrerChrono(); }
+  else if (touche === 'Escape') afficherAccueil();
+});
+/* Empêche l'activation d'un bouton focalisé par Espace (déjà géré au keydown). */
+document.addEventListener('keyup', e => {
+  if (e.key === ' ' && !$('#ecran-question').hidden && !e.target.matches('input, textarea, select')) e.preventDefault();
+});
+
+function basculerPleinEcran() {
+  try {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen?.();
+  } catch { /* plein écran refusé : sans gravité */ }
+}
+
+/* Thème : clair par défaut, mémorisé si possible. */
+function appliquerTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+}
+$('#btn-theme').addEventListener('click', () => {
+  const nouveau = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  appliquerTheme(nouveau);
+  Prefs.maj({ theme: nouveau });
+});
+
+$('#duree').addEventListener('change', () => {
+  const d = lireDuree();
+  $('#duree').value = d;
+  Prefs.maj({ duree: d });
+});
+
+/* =====================================================================
+   11. DÉMARRAGE
+   ===================================================================== */
+(function demarrer() {
+  const prefs = Prefs.lire();
+  appliquerTheme(prefs.theme === 'dark' ? 'dark' : 'light');
+  if (Number.isFinite(prefs.duree)) $('#duree').value = prefs.duree;
+  afficherAccueil();
+})();
+</script>
+</body>
+</html>

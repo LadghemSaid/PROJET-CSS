@@ -1,0 +1,48 @@
+/* ==========================================================================
+   layout.css — Layer « layout »
+   Rôle : la MISE EN PAGE (conteneurs, grilles de sections, en-tête, footer).
+   Les composants (cartes, boutons…) vont dans components.css.
+   Mobile-first : styles de base pour 320 px, puis media queries en
+   (width >= …) pour élargir (exigence 3).
+   ========================================================================== */
+
+@layer layout {
+  /* Conteneur centré à largeur maximale */
+  .container {
+    inline-size: min(100% - 2 * var(--space-4), 72rem);
+    margin-inline: auto;
+  }
+
+  .section {
+    padding-block: var(--space-section);
+  }
+
+  /* Exigence 2 — grille à zones nommées (exemple à adapter : programme)
+     Mobile : une colonne. Desktop : deux jours côte à côte. */
+  .programme {
+    display: grid;
+    gap: var(--space-6);
+    grid-template-areas:
+      "titre"
+      "jour1"
+      "jour2";
+
+    @media (width >= 48rem) {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "titre titre"
+        "jour1 jour2";
+    }
+
+    /* Chaque enfant se place dans sa zone nommée */
+    & > h2 {
+      grid-area: titre;
+    }
+    /* TODO : placer les blocs des jours dans "jour1" et "jour2" */
+  }
+
+  /* TODO : .site-header (Flexbox), .hero, grille des intervenants
+     (ex. repeat(auto-fit, minmax(16rem, 1fr))), billetterie, footer.
+     TODO (exigence 3) : déclarer le conteneur de votre container query,
+     ex. .speakers { container: speakers / inline-size; } */
+}

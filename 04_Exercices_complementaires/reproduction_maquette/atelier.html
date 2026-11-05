@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reproduction de maquette — Atelier</title>
+<style>
+  :root {
+    --fond: #f5f6f8; --surface: #fff; --surface-2: #eef0f4; --bord: #d5d9e0;
+    --texte: #1f2733; --discret: #4f5a6b; --accent: #2f4b7c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--texte);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .barre { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem;
+           padding: .75rem 1rem; border-bottom: 2px solid var(--accent); background: var(--surface); }
+  .barre h1 { margin: 0; font-size: 1.2rem; }
+  .choix { display: flex; gap: .35rem; flex-wrap: wrap; }
+  .choix button { min-width: 2.5rem; min-height: 2.5rem; border: 1px solid var(--bord); border-radius: 6px;
+                  background: var(--surface); color: var(--texte); font: inherit; font-weight: 700; cursor: pointer; }
+  .choix button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  label { font-weight: 600; }
+  input[type="text"] { padding: .4rem .6rem; border: 1px solid var(--bord); border-radius: 6px;
+                       background: var(--surface); color: var(--texte); font: inherit; width: 12rem; }
+  .barre a { color: var(--accent); font-weight: 700; margin-inline-start: auto; }
+
+  main { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); justify-content: center;
+         gap: 1.5rem 2.5rem; padding: 1.25rem 1rem 3rem; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  section h2 { margin: 0 0 .5rem; font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--discret); }
+
+  /* Zone 400 × 300 : rendu de l'étudiant + calque de la cible par-dessus */
+  .scene { position: relative; width: 400px; height: 300px; isolation: isolate;
+           outline: 1px solid var(--bord); background: #fff; }
+  .scene iframe { position: absolute; inset: 0; width: 400px; height: 300px; border: 0; display: block; }
+  .calque { pointer-events: none; opacity: 0; }
+  .scene[data-mode="superposition"] .calque { opacity: var(--opacite); }
+  .scene[data-mode="difference"] .calque { opacity: var(--opacite); mix-blend-mode: difference; }
+  .scene[data-mode="rideau"] .calque { opacity: 1; clip-path: inset(0 calc(100% - var(--rideau)) 0 0); }
+  .scene[data-mode="rideau"]::after { content: ""; position: absolute; top: 0; bottom: 0; left: var(--rideau);
+           width: 2px; background: #e63946; pointer-events: none; }
+  .coord { font: .8rem ui-monospace, Consolas, monospace; color: var(--discret); margin: .35rem 0 0; min-height: 1.2em; }
+
+  .outils { display: grid; gap: .6rem; margin-top: .75rem; padding: .75rem; border: 1px solid var(--bord);
+            border-radius: 8px; background: var(--surface); width: 400px; max-width: 100%; }
+  .modes { display: flex; flex-wrap: wrap; gap: .3rem .9rem; border: 0; margin: 0; padding: 0; }
+  .modes legend { font-weight: 700; padding: 0; margin-bottom: .3rem; }
+  .modes label { font-weight: 400; display: inline-flex; gap: .3rem; align-items: center; cursor: pointer; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  /* Éditeur : fond sombre pour le code */
+  textarea { display: block; width: 400px; max-width: 100%; height: 300px; margin-top: .4rem; padding: .75rem;
+             border: 1px solid var(--bord); border-radius: 8px; background: #1e2430; color: #eef1f6;
+             font: 14px/1.5 ui-monospace, "Cascadia Code", Consolas, monospace; resize: vertical; tab-size: 2; }
+  .actions { display: flex; gap: .4rem; flex-wrap: wrap; width: 400px; max-width: 100%; margin-top: .5rem; }
+  .actions button { padding: .4rem .8rem; border: 1px solid var(--bord); border-radius: 6px; background: var(--surface);
+                    color: var(--texte); font: inherit; font-size: .85rem; cursor: pointer; }
+  .actions button:hover { border-color: var(--accent); }
+
+  .cible-cadre { width: 400px; height: 300px; outline: 1px solid var(--bord); }
+  .cible-cadre iframe { width: 400px; height: 300px; border: 0; display: block; pointer-events: none; }
+  .cible-titre { margin: 0 0 .25rem; font-size: 1.3rem; font-weight: 700; }
+  .cible-notions { margin: 0 0 .5rem; color: var(--discret); font-size: .9rem; max-width: 400px; }
+  .dim { font: .85rem ui-monospace, Consolas, monospace; color: var(--discret); margin: .5rem 0; }
+  .palette { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+  .palette button { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .7rem .3rem .35rem;
+                    border: 1px solid var(--bord); border-radius: 6px; background: var(--surface); color: var(--texte);
+                    font: .85rem ui-monospace, Consolas, monospace; cursor: pointer; }
+  .palette i { width: 1.2rem; aspect-ratio: 1; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .2); }
+  .encadre { max-width: 400px; margin-top: 1rem; padding: .75rem 1rem; border: 1px solid var(--bord);
+             border-left: 4px solid var(--accent); border-radius: 6px; background: var(--surface); font-size: .9rem; }
+  .encadre h3 { margin: 0 0 .35rem; font-size: .95rem; }
+  .encadre ul { margin: 0; padding-left: 1.2rem; }
+  .aide { max-width: 400px; color: var(--discret); font-size: .85rem; }
+  .aide code, .encadre code { color: var(--texte); }
+  button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .statut { min-height: 1.4em; color: var(--accent); font-size: .85rem; margin: .25rem 0 0; }
+  /* Sur petit écran, les zones 400 px défilent au lieu de casser la page */
+  @media (max-width: 440px) { .zone { overflow-x: auto; } }
+</style>
+</head>
+<body>
+<header class="barre">
+  <h1>Reproduction de maquette — atelier</h1>
+  <div class="choix" role="group" aria-label="Choisir la cible" id="choix"></div>
+  <label>Nom (ou groupe) <input type="text" id="nom" placeholder="ex. Durand_Martin" autocomplete="off"></label>
+  <a href="cibles.html">Voir toutes les cibles</a>
+</header>
+
+<main>
+  <!-- Colonne gauche : rendu en direct + éditeur -->
+  <section aria-labelledby="t-rendu">
+    <h2 id="t-rendu">Votre rendu (400 × 300)</h2>
+    <div class="zone">
+      <div class="scene" id="scene" data-mode="aucun" style="--opacite: 0.5; --rideau: 50%">
+        <iframe id="rendu" title="Votre rendu" sandbox></iframe>
+        <iframe id="calque" class="calque" title="Calque de la cible" tabindex="-1" aria-hidden="true"></iframe>
+      </div>
+    </div>
+    <p class="coord" id="coord" aria-live="off"></p>
+
+    <div class="outils">
+      <fieldset class="modes">
+        <legend>Comparer avec la cible</legend>
+        <label><input type="radio" name="mode" value="aucun" checked> Aucune</label>
+        <label><input type="radio" name="mode" value="superposition"> Superposition</label>
+        <label><input type="radio" name="mode" value="difference"> Différence</label>
+        <label><input type="radio" name="mode" value="rideau"> Rideau</label>
+      </fieldset>
+      <label for="curseur" id="curseur-label">Opacité de la cible : 50 %</label>
+      <input type="range" id="curseur" min="0" max="100" value="50">
+    </div>
+
+    <label for="code" style="display:block;margin-top:1rem">Votre code HTML + CSS</label>
+    <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+    <div class="actions">
+      <button type="button" id="copier">Copier</button>
+      <button type="button" id="telecharger">Télécharger</button>
+      <button type="button" id="reinit">Réinitialiser</button>
+    </div>
+    <p class="statut" id="statut" role="status"></p>
+  </section>
+
+  <!-- Colonne droite : la cible -->
+  <section aria-labelledby="t-cible">
+    <h2 id="t-cible">Cible</h2>
+    <p class="cible-titre" id="cible-titre"></p>
+    <p class="cible-notions" id="cible-notions"></p>
+    <div class="zone"><div class="cible-cadre"><iframe id="cible" title="Cible à reproduire" tabindex="-1"></iframe></div></div>
+    <p class="dim">400 × 300 px · cliquez sur une couleur pour la copier</p>
+    <ul class="palette" id="palette"></ul>
+    <div class="encadre">
+      <h3>Critères de réussite</h3>
+      <ul>
+        <li><strong>Fidélité visuelle</strong> : en mode Superposition puis Différence, aucun écart visible (seuls de fins liserés sur les bords courbes sont tolérés).</li>
+        <li><strong>Code lisible et commenté</strong> : indentation régulière, noms de classes explicites, un commentaire pour chaque choix de mise en page (positionnement, calcul d'une dimension…).</li>
+        <li><strong>Contraintes</strong> : HTML et CSS uniquement, sans image (ni <code>&lt;img&gt;</code>, ni <code>url()</code>, ni SVG).</li>
+      </ul>
+    </div>
+    <div class="aide">
+      <p><strong>Superposition</strong> : la cible est affichée en transparence par-dessus votre rendu ; réglez son opacité avec le curseur.</p>
+      <p><strong>Différence</strong> : là où votre rendu est identique à la cible, l'image devient <strong>noire</strong>. Tout ce qui reste coloré est un écart à corriger.</p>
+      <p><strong>Rideau</strong> : survolez le rendu pour faire glisser la cible de gauche à droite.</p>
+      <p>Le code est rendu tel quel dans une page vide : le <code>body</code> garde sa marge par défaut de 8 px (pensez à <code>body { margin: 0 }</code>). Il est sauvegardé dans ce navigateur, cible par cible. JavaScript est désactivé dans le rendu.</p>
+    </div>
+  </section>
+</main>
+
+<script src="cibles.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const DEPART = '<!-- Structure HTML -->\n<div></div>\n\n<style>\n  /* Commentez vos choix : dimensions, positionnement, couleurs… */\n  div {\n    width: 100px;\n    height: 100px;\n    background: #dd6b4d;\n  }\n</style>\n';
+  const cle = n => 'reproduction-maquette-cible-' + n;
+  const lire = k => { try { return localStorage.getItem(k); } catch { return null; } };
+  const ecrire = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  let cible = window.CIBLES[0];
+
+  // Boutons de choix de cible
+  for (const c of window.CIBLES) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = c.num; b.dataset.num = c.num;
+    b.setAttribute('aria-label', `Cible ${c.num} : ${c.nom}`);
+    b.addEventListener('click', () => choisir(c.num));
+    $('choix').append(b);
+  }
+
+  // Rendu en direct (léger délai pour ne pas recharger à chaque touche)
+  let minuteur;
+  function rendre() {
+    const code = $('code').value;
+    clearTimeout(minuteur);
+    minuteur = setTimeout(() => { $('rendu').srcdoc = code; ecrire(cle(cible.num), code); }, 150);
+  }
+  $('code').addEventListener('input', rendre);
+
+  function choisir(num) {
+    cible = window.CIBLES.find(c => c.num === Number(num)) || window.CIBLES[0];
+    document.querySelectorAll('#choix button').forEach(b => b.setAttribute('aria-pressed', b.dataset.num == cible.num));
+    $('cible-titre').textContent = `Cible ${cible.num} — ${cible.nom} (difficulté ${cible.difficulte}/5)`;
+    $('cible-notions').textContent = `Notions : ${cible.notions}`;
+    $('cible').srcdoc = cible.code;
+    $('calque').srcdoc = cible.code;
+    $('palette').innerHTML = cible.palette.map(h =>
+      `<li><button type="button" data-hex="${h}"><i style="background:${h}"></i>${h}</button></li>`).join('');
+    $('code').value = lire(cle(cible.num)) ?? DEPART;
+    $('rendu').srcdoc = $('code').value;
+    history.replaceState(null, '', '#' + cible.num);
+  }
+
+  // Modes de comparaison et curseur
+  function majCurseur() {
+    const mode = document.querySelector('[name="mode"]:checked').value;
+    const v = $('curseur').value;
+    $('scene').dataset.mode = mode;
+    $('scene').style.setProperty('--opacite', v / 100);
+    $('scene').style.setProperty('--rideau', v + '%');
+    $('curseur-label').textContent = mode === 'rideau' ? `Position du rideau : ${v} %` : `Opacité de la cible : ${v} %`;
+  }
+  document.querySelectorAll('[name="mode"]').forEach(r => r.addEventListener('change', () => {
+    $('curseur').value = r.value === 'difference' ? 100 : 50;
+    majCurseur();
+  }));
+  $('curseur').addEventListener('input', majCurseur);
+
+  // Survol : coordonnées + rideau qui suit la souris
+  $('scene').addEventListener('pointermove', e => {
+    const r = $('scene').getBoundingClientRect();
+    const x = Math.round(e.clientX - r.left), y = Math.round(e.clientY - r.top);
+    $('coord').textContent = `x = ${x} px, y = ${y} px`;
+    if ($('scene').dataset.mode === 'rideau') { $('curseur').value = Math.round(x / 4); majCurseur(); }
+  });
+  $('scene').addEventListener('pointerleave', () => $('coord').textContent = '');
+  // L'iframe de rendu capte la souris : on la laisse passer au conteneur
+  $('rendu').style.pointerEvents = 'none';
+
+  // Palette : copie du code couleur
+  $('palette').addEventListener('click', async e => {
+    const b = e.target.closest('[data-hex]'); if (!b) return;
+    try { await navigator.clipboard.writeText(b.dataset.hex); statut(b.dataset.hex + ' copié'); }
+    catch { statut('Copie impossible : ' + b.dataset.hex); }
+  });
+
+  // Actions
+  function statut(t) { $('statut').textContent = t; setTimeout(() => $('statut').textContent = '', 2000); }
+  $('copier').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('code').value); statut('Code copié'); } catch { statut('Copie impossible'); }
+  });
+  $('telecharger').addEventListener('click', () => {
+    const nom = ($('nom').value.trim() || 'reproduction').replace(/[^\p{L}\p{N}_-]+/gu, '_');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([$('code').value], { type: 'text/html' }));
+    a.download = `${nom}_cible${cible.num}.html`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  $('reinit').addEventListener('click', () => {
+    if (!confirm('Effacer votre code pour cette cible ?')) return;
+    $('code').value = DEPART; rendre();
+  });
+  $('nom').value = lire('reproduction-maquette-nom') ?? '';
+  $('nom').addEventListener('input', () => ecrire('reproduction-maquette-nom', $('nom').value));
+
+  choisir(location.hash.slice(1) || 1);
+  majCurseur();
+</script>
+</body>
+</html>

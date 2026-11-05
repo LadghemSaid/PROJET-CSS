@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reproduction de maquette — Les cibles</title>
+<style>
+  :root {
+    --fond: #f5f6f8; --surface: #fff; --bord: #d5d9e0; --texte: #1f2733; --discret: #4f5a6b; --accent: #2f4b7c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--texte);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { max-width: 1300px; margin: 0 auto; padding: 2rem 1rem 1rem; display: flex; flex-wrap: wrap;
+           align-items: end; justify-content: space-between; gap: 1rem; border-bottom: 2px solid var(--accent); }
+  .surtitre { margin: 0 0 .25rem; font-size: .85rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--discret); }
+  h1 { margin: 0; font-size: clamp(1.6rem, 1rem + 2.2vw, 2.4rem); line-height: 1.15; }
+  .sous-titre { margin: .5rem 0 0; color: var(--discret); max-width: 75ch; }
+  .lien { color: var(--accent); font-weight: 700; }
+  main { max-width: 1300px; margin: 0 auto; padding: 1rem 1rem 3rem;
+         display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 1.5rem; }
+  .seance { grid-column: 1 / -1; margin: 1rem 0 -.5rem; font-size: .9rem; text-transform: uppercase;
+            letter-spacing: .08em; color: var(--discret); border-bottom: 1px solid var(--bord); padding-bottom: .4rem; }
+  .cible { background: var(--surface); border: 1px solid var(--bord); border-radius: 8px; padding: 1rem; }
+  .cible__tete { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .75rem; margin-bottom: .75rem; }
+  .cible h2 { margin: 0; font-size: 1.25rem; flex: 1; }
+  .difficulte { font-size: .85rem; color: var(--discret); white-space: nowrap; }
+  .notions { flex-basis: 100%; margin: 0; font-size: .9rem; color: var(--discret); }
+  .cadre { width: 400px; max-width: 100%; aspect-ratio: 4 / 3; overflow: hidden; outline: 1px solid var(--bord); }
+  .cadre iframe { display: block; width: 400px; height: 300px; border: 0; transform-origin: 0 0; pointer-events: none; }
+  .infos { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; margin-top: .75rem; }
+  .dim { font: .85rem ui-monospace, Consolas, monospace; color: var(--discret); }
+  .palette { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+  .palette button { display: inline-flex; align-items: center; gap: .4rem; padding: .25rem .6rem .25rem .3rem;
+                    border: 1px solid var(--bord); border-radius: 6px; background: var(--fond); color: var(--texte);
+                    font: .8rem ui-monospace, Consolas, monospace; cursor: pointer; }
+  .palette i { width: 1.1rem; aspect-ratio: 1; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .2); }
+  .palette button:hover { border-color: var(--accent); }
+  button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .ouvrir { display: inline-block; margin-top: .75rem; color: var(--accent); font-weight: 700; }
+  .toast { position: fixed; bottom: 1rem; left: 50%; translate: -50% 0; padding: .5rem 1rem; border-radius: 6px;
+           background: var(--texte); color: #fff; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.visible { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <p class="surtitre">Module CSS avancé · Exercice complémentaire (non noté)</p>
+    <h1>Reproduction de maquette — les cibles</h1>
+    <p class="sous-titre">Reproduisez chaque cible aussi fidèlement que possible dans une zone de 400 × 300 px, en HTML et CSS uniquement,
+       avec un code lisible et commenté. Cliquez sur une couleur pour copier son code hexadécimal.</p>
+  </div>
+  <a class="lien" href="atelier.html">Ouvrir l'atelier →</a>
+</header>
+<main id="liste"></main>
+<p class="toast" id="toast" role="status" aria-live="polite"></p>
+
+<script src="cibles.js"></script>
+<script>
+  // Construction des fiches de cibles (le code des cibles n'est jamais affiché)
+  const liste = document.getElementById('liste');
+  const SEANCES = {
+    1: 'Séance 1 — Jour 1, 15h30 (cibles 1 à 3)',
+    2: 'Séance 2 — Jour 2, 15h45 (cibles 4 et 5)',
+  };
+  let seance = 0;
+  for (const c of window.CIBLES) {
+    if (c.seance !== seance) {
+      seance = c.seance;
+      const h = document.createElement('h2'); h.className = 'seance';
+      h.textContent = SEANCES[seance];
+      liste.append(h);
+    }
+    const art = document.createElement('article');
+    art.className = 'cible';
+    art.innerHTML = `
+      <div class="cible__tete">
+        <h2>Cible ${c.num} — ${c.nom}</h2>
+        <span class="difficulte">Difficulté : ${c.difficulte}/5</span>
+        <p class="notions">Notions : ${c.notions}</p>
+      </div>
+      <div class="cadre"><iframe title="Cible ${c.num} : ${c.nom}" tabindex="-1"></iframe></div>
+      <div class="infos">
+        <span class="dim">400 × 300 px · ${c.palette.length} couleurs</span>
+        <ul class="palette">${c.palette.map(h => `<li><button type="button" data-hex="${h}"><i style="background:${h}"></i>${h}</button></li>`).join('')}</ul>
+      </div>
+      <a class="ouvrir" href="atelier.html#${c.num}">Travailler cette cible dans l'atelier →</a>`;
+    art.querySelector('iframe').srcdoc = c.code;
+    liste.append(art);
+  }
+  // Mise à l'échelle des iframes quand l'écran est plus étroit que 400 px
+  const ajuster = () => document.querySelectorAll('.cadre').forEach(cadre => {
+    cadre.querySelector('iframe').style.scale = Math.min(1, cadre.clientWidth / 400);
+  });
+  addEventListener('resize', ajuster); ajuster();
+  // Copie d'une couleur
+  const toast = document.getElementById('toast');
+  liste.addEventListener('click', async e => {
+    const b = e.target.closest('[data-hex]'); if (!b) return;
+    try { await navigator.clipboard.writeText(b.dataset.hex); toast.textContent = b.dataset.hex + ' copié'; }
+    catch { toast.textContent = 'Copie impossible : ' + b.dataset.hex; }
+    toast.classList.add('visible'); setTimeout(() => toast.classList.remove('visible'), 1400);
+  });
+</script>
+</body>
+</html>
